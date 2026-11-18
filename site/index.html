@@ -854,7 +854,7 @@ $("authForm").onsubmit = async (e) => {
 // one-time reset link: signs you in once, then asks for a new password
 async function tryRecover() {
   const m = location.hash.match(/^#recover=([a-f0-9]{32,128})$/i); if (!m) return;
-  history.replaceState(null, "", location.pathname);
+  window.history.replaceState(null, "", location.pathname);
   const { error } = await sb.auth.verifyOtp({ type: "recovery", token_hash: m[1] });
   if (error) { $("aMsg").style.color = "var(--red)"; $("aMsg").textContent = "This reset link was already used or has expired. Ask for a new one."; return; }
   setTimeout(() => { $("passForm").reset(); openM("mPassM"); toast("Choose your new password"); }, 800);
