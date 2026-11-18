@@ -298,6 +298,9 @@ table.grid{border-collapse:separate;border-spacing:0;width:100%;font-variant-num
 .grid .it b{font-weight:650;font-size:14px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .dotsm{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:1px}
 .dsync{margin-bottom:14px;overflow:hidden}
+.grid th.sortable{cursor:pointer;user-select:none}
+.grid th.sortable:hover,.grid th.sortable.on{color:var(--ink)}
+.grid th.sortable.on{box-shadow:inset 0 -2px 0 var(--leaf)}
 .kpi.on{border-color:var(--leaf);box-shadow:0 0 0 2px var(--leaf)}
 .dsync summary{padding:12px 16px;font-weight:700;cursor:pointer}
 .dstore{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--line);flex-wrap:wrap}
@@ -1128,7 +1131,7 @@ $("repSeg").onclick = (e) => { const b = e.target.closest("[data-f]"); if (!b) r
 $("repGrid").onclick = (e) => { const r = e.target.closest("[data-bc]"); if (r) openBarcode(r.dataset.bc); };
 
 // ================= who's cheaper (daily full-list comparison) =================
-let dailyF = "higher", dailyQ = "", dailyRows = [], dailyMore = false, dailySync = [], dailyTimer = null;
+let dailyF = "higher", dailyQ = "", dailyRows = [], dailyMore = false, dailySync = [], dailyTimer = null, dailySort = null;
 const DAILY_PAGE = 100;
 const agoD = (t) => { if (!t) return "never"; const m = Math.max(0, (Date.now() - new Date(t)) / 60000); return m < 2 ? "just now" : m < 60 ? `${Math.round(m)} min ago` : m < 1440 ? `${Math.round(m / 60)} hr ago` : `${Math.round(m / 1440)} days ago`; };
 const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
@@ -1191,9 +1194,11 @@ function dailyQuery(cols) {
   q = dailyF === "cheaper" ? q.order("diff", { ascending: true }) : dailyF === "alone" ? q.order("name") : q.order("diff", { ascending: false, nullsFirst: false });
   return q.order("my_key");
 }
+// which column the list is sorted by; null = the natural order for the chosen group
+function dailySortNow() { return dailySort || (dailyF === "cheaper" ? { k: "diff", desc: false } : dailyF === "alone" || dailyF === "ignored" ? { k: "name", desc: false } : { k: "diff", desc: true }); }
 async function loadDaily(more) {
-  const off = more ? dailyRows.length : 0;
-  const { data, error } = await dailyQuery("my_key,barcode,name,size,image_url,my_price,low_price,low_store,diff,verdict,stores").range(off, off + DAILY_PAGE);
+  const off = more ? dailyRows.length : 0, so = dailySortNow();
+  const { data, error } = await sb.rpc("pc_compare_list", { p_area: areaId, p_filter: dailyF, p_q: dailyQ.trim().slice(0, 60), p_sort: so.k, p_desc: !!so.desc, p_store: so.k === "store" ? so.store : null, p_limit: DAILY_PAGE + 1, p_offset: off });
   if (error) throw new Error(error.message);
   const r = data || [];
   dailyMore = r.length > DAILY_PAGE;
@@ -1204,10 +1209,12 @@ function drawDaily() {
   const cols = dailySync.filter((s) => !s.is_mine && (s.last_done || s.sync !== "off"));
   const nameOf = Object.fromEntries(dailySync.map((s) => [s.id, s.name]));
   if (!dailyRows.length) {
-    const none = !dailySync.some((s) => s.is_mine) ? "Your admin needs to choose which store is yours." : dailySync.some((s) => s.status === "running" || s.requested) ? "The price lists are being collected. This page fills in by itself in a few minutes." : dailyQ ? "No items match that search." : "Nothing in this group.";
+    const none = !dailySync.some((s) => s.is_mine) ? "Your admin needs to choose which store is yours." : dailySync.some((s) => s.status === "running" || s.requested) ? "The price lists are being collected. This page fills in by itself in a few minutes." : dailyQ ? "No items match that search." : dailySort?.k === "store" ? "This store has none of the items in this group. <button class=\"btn sm\" id=\"dailySortReset\">Show all stores</button>" : "Nothing in this group.";
     $("dailyGrid").innerHTML = `<div class="dnote">${none}</div>`; $("dailyMoreBox").innerHTML = ""; return;
   }
-  $("dailyGrid").innerHTML = `<table class="grid"><thead><tr><th>Item</th><th>Your price</th><th>Cheapest</th><th>Difference</th>${cols.map((s) => `<th>${esc(s.name)}</th>`).join("")}<th></th></tr></thead><tbody>${dailyRows.map((p) => {
+  const so = dailySortNow(), arrow = (k, st) => so.k === k && (k !== "store" || so.store === st) ? (so.desc ? " ▼" : " ▲") : "";
+  const th = (label, k, st) => `<th class="sortable${arrow(k, st) ? " on" : ""}" data-sort="${k}"${st ? ` data-st="${esc(st)}"` : ""} title="${k === "store" ? "Show only items this store has, biggest gap first" : "Sort by this column"}" tabindex="0">${esc(label)}${arrow(k, st)}</th>`;
+  $("dailyGrid").innerHTML = `<table class="grid"><thead><tr>${th("Item", "name")}${th("Your price", "my")}${th("Cheapest", "low")}${th("Difference", "diff")}${cols.map((s) => th(s.name, "store", s.id)).join("")}<th></th></tr></thead><tbody>${dailyRows.map((p) => {
     const by = Object.fromEntries((Array.isArray(p.stores) ? p.stores : []).map((x) => [x.s, x]));
     const g = p.diff == null ? null : +p.diff;
     return `<tr ${/^\d{6,14}$/.test(p.barcode || "") ? `data-bc="${esc(p.barcode)}"` : `style="cursor:default"`}><td><div class="it">${thumb(p.image_url)}<div style="min-width:0"><b>${esc(p.name)}</b><span class="code">${esc(p.barcode || p.size || "")}</span></div></div></td>
@@ -1218,9 +1225,9 @@ function drawDaily() {
   }).join("")}</tbody></table>`;
   $("dailyMoreBox").innerHTML = dailyMore ? `<button class="btn" id="dailyMoreBtn">Show ${DAILY_PAGE} more</button>` : "";
 }
-$("dailySeg").onclick = (e) => { const b = e.target.closest("[data-f]"); if (!b) return; dailyF = b.dataset.f; dailyMark(); loadDaily(false).catch((er) => toast(er.message)); };
+$("dailySeg").onclick = (e) => { const b = e.target.closest("[data-f]"); if (!b) return; dailyF = b.dataset.f; dailySort = null; dailyMark(); loadDaily(false).catch((er) => toast(er.message)); };
 $("dailyKpis").onclick = async (e) => {
-  const b = e.target.closest("[data-f]"); if (!b) return; dailyF = b.dataset.f; dailyMark();
+  const b = e.target.closest("[data-f]"); if (!b) return; dailyF = b.dataset.f; dailySort = null; dailyMark();
   $("dailyGrid").innerHTML = `<div class="dnote">Loading…</div>`;
   try { await loadDaily(false); } catch (er) { toast(er.message); }
   $("dailySeg").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1231,6 +1238,18 @@ function dailyMark() {
 }
 $("dailyQ").oninput = () => { clearTimeout($("dailyQ").h); $("dailyQ").h = setTimeout(() => { dailyQ = $("dailyQ").value; loadDaily(false).catch((er) => toast(er.message)); }, 350); };
 $("dailyGrid").onclick = async (e) => {
+  if (e.target.closest("#dailySortReset")) { dailySort = null; return loadDaily(false).catch((er) => toast(er.message)); }
+  const h = e.target.closest("th[data-sort]");
+  if (h) {
+    const k = h.dataset.sort, st = h.dataset.st || null, cur = dailySortNow(), same = cur.k === k && (k !== "store" || cur.store === st);
+    // store column: first click = items that store has, biggest gap first; second click reverses; third click goes back to all stores
+    if (k === "store" && same && !cur.desc) dailySort = null;
+    else dailySort = { k, store: st, desc: same ? !cur.desc : k !== "name" };
+    $("dailyGrid").style.opacity = ".5";
+    try { await loadDaily(false); } catch (er) { toast(er.message); }
+    $("dailyGrid").style.opacity = "";
+    return;
+  }
   const g = e.target.closest("[data-ign]");
   if (g) {
     e.stopPropagation(); g.disabled = true; const on = dailyF !== "ignored";
