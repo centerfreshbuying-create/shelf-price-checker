@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Shelf Price Checker Helper",
+  "version": "1.0.0",
+  "description": "Lets Shelf Price Checker look up prices on store sites that only open in a real browser.",
+  "permissions": [
+    "scripting",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.shopevergreenkosher.com/*",
+    "https://www.gourmetglattonline.com/*",
+    "https://www.gonpgs.com/*",
+    "https://www.foodexsupermarket.com/*",
+    "https://www.glattmart.com/*",
+    "https://www.koshercornersupermarket.com/*",
+    "https://www.thepompeopleonline.com/*",
+    "https://www.shopsmartkosher.com/*",
+    "https://shopevergreenkosher.com/*",
+    "https://gourmetglattonline.com/*",
+    "https://gonpgs.com/*",
+    "https://foodexsupermarket.com/*",
+    "https://glattmart.com/*",
+    "https://koshercornersupermarket.com/*",
+    "https://thepompeopleonline.com/*",
+    "https://shopsmartkosher.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://shelf-price-checker.netlify.app/*",
+        "https://*--shelf-price-checker.netlify.app/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "icons": {
+    "128": "icon128.png"
+  }
+}

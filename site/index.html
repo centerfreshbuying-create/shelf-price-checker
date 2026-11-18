@@ -1,0 +1,2022 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e3b2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Shelf Price Checker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M8 12h30l18 20-18 20H8z' fill='%23ffd23f'/%3E%3Ccircle cx='18' cy='32' r='5' fill='%230e3b2e'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="vendor/supabase.min.js"></script>
+<script src="vendor/html5-qrcode.min.js"></script>
+<script src="vendor/xlsx.full.min.js"></script>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<style>
+:root{
+  --pine:#0e3b2e; --pine-2:#16503f; --leaf:#1f7a4f; --leaf-bg:#e6f3ec;
+  --tag:#ffd23f; --tag-ink:#3d2e00;
+  --bg:#eef1ee; --paper:#ffffff; --ink:#14201b; --muted:#5d6b64; --line:#d9dfdb; --soft:#f4f6f4;
+  --red:#c8372d; --red-bg:#fbeceb; --amber:#a15c07; --amber-bg:#fdf3e2; --blue:#1d5fbf; --blue-bg:#e9f0fb;
+  --head:#0e3b2e; --head-ink:#ffffff; --field:#ffffff;
+  --r-lg:18px; --r:12px; --r-sm:8px;
+  --lift:0 1px 0 rgba(20,32,27,.04),0 8px 24px -12px rgba(14,59,46,.22);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c1512; --paper:#13201b; --ink:#e7eeea; --muted:#93a39b; --line:#22342c; --soft:#182821;
+  --leaf:#4cc38a; --leaf-bg:#123526; --red:#ff7b6e; --red-bg:#3a1714; --amber:#f0b45a; --amber-bg:#36260c; --blue:#7fb0ff; --blue-bg:#14243f;
+  --head:#08241c; --field:#0f1a16; --lift:0 1px 0 rgba(0,0,0,.3),0 10px 28px -14px rgba(0,0,0,.7); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0c1512; --paper:#13201b; --ink:#e7eeea; --muted:#93a39b; --line:#22342c; --soft:#182821;
+  --leaf:#4cc38a; --leaf-bg:#123526; --red:#ff7b6e; --red-bg:#3a1714; --amber:#f0b45a; --amber-bg:#36260c; --blue:#7fb0ff; --blue-bg:#14243f;
+  --head:#08241c; --field:#0f1a16; --lift:0 1px 0 rgba(0,0,0,.3),0 10px 28px -14px rgba(0,0,0,.7); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Figtree,system-ui,sans-serif;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button,input,select{font:inherit;color:inherit}
+a{color:var(--blue)}
+.hidden{display:none!important}
+:focus-visible{outline:3px solid var(--tag);outline-offset:2px;border-radius:6px}
+.disp{font-family:"Bricolage Grotesque",Figtree,sans-serif;letter-spacing:-.02em}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- header ---------- */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:31;background:var(--head)}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--head);color:var(--head-ink)}
+.bar{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:10px;padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.logo{display:flex;align-items:center;gap:10px;background:none;border:0;color:#fff;cursor:pointer;padding:0}
+.logo svg{flex:none}
+.logo span{font-family:"Bricolage Grotesque";font-weight:800;font-size:20px;letter-spacing:-.03em}
+.area{display:flex;align-items:center;gap:6px;margin-left:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:99px;padding:4px 6px 4px 12px}
+.area small{opacity:.7;font-size:13px}
+.area select{background:transparent;border:0;color:#fff;font-weight:700;padding:2px 22px 2px 2px;cursor:pointer;appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23fff' stroke-width='1.6' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center}
+.area select option{color:#14201b}
+.sp{flex:1}
+.hb{background:transparent;border:1px solid transparent;color:#fff;border-radius:10px;padding:7px 11px;cursor:pointer;font-weight:600;font-size:14.5px;display:inline-flex;gap:6px;align-items:center}
+.hb:hover{background:rgba(255,255,255,.1)}
+.hb .n{background:var(--tag);color:var(--tag-ink);border-radius:99px;font-size:12px;padding:0 7px;font-weight:800}
+
+.scan{background:var(--head);padding-block:2px 22px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.scan form{max-width:1200px;margin:0 auto;display:flex;gap:10px;align-items:stretch}
+.scanbox{flex:1;display:flex;align-items:center;gap:12px;background:var(--field);border-radius:14px;padding:0 6px 0 16px;min-width:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+.scanbox:focus-within{box-shadow:0 0 0 3px var(--tag)}
+.bars{flex:none;width:30px;height:22px;background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 4px,var(--ink) 4px 5px,transparent 5px 8px,var(--ink) 8px 11px,transparent 11px 12px);opacity:.75}
+.scanbox input{flex:1;min-width:0;border:0;background:transparent;padding:16px 0;font-size:20px;font-weight:600;letter-spacing:.06em;outline:none;color:var(--ink)}
+.scanbox input::placeholder{letter-spacing:0;font-weight:500;color:var(--muted)}
+.cam{border:0;background:var(--soft);color:var(--ink);border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:7px}
+.go{border:0;background:var(--tag);color:var(--tag-ink);border-radius:14px;padding:0 22px;font-weight:800;font-size:16.5px;cursor:pointer;font-family:"Bricolage Grotesque"}
+.go:hover{filter:brightness(1.05)}
+
+/* ---------- buttons ---------- */
+.btn{border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:9px 14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;text-decoration:none;color:var(--ink)}
+.btn:hover{background:var(--soft)}
+.btn.pri{background:var(--pine);border-color:var(--pine);color:#fff}
+:root[data-theme="dark"] .btn.pri{background:var(--leaf);border-color:var(--leaf);color:#06140e}
+.btn.sm{padding:6px 10px;font-size:13.5px;border-radius:8px}
+.btn.q{background:transparent;border-color:transparent}
+.btn.danger{color:var(--red)}
+.btn:disabled{opacity:.5;cursor:default}
+
+main{max-width:1200px;margin:0 auto;padding-block:22px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg)}
+.muted{color:var(--muted)} .small{font-size:13.5px}
+h2{font-family:"Bricolage Grotesque";font-size:22px;letter-spacing:-.02em;margin:0 0 4px;font-weight:700}
+
+/* ---------- home ---------- */
+.homegrid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:18px}
+.seg{display:flex;gap:4px;background:var(--soft);padding:4px;border-radius:12px;width:max-content;max-width:100%;overflow-x:auto}
+.seg button{border:0;background:transparent;padding:7px 14px;border-radius:9px;font-weight:600;cursor:pointer;color:var(--muted);white-space:nowrap}
+.seg button.on{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.ihead{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:16px 16px 12px}
+.ihead input{margin-left:auto;border:1px solid var(--line);border-radius:10px;padding:8px 12px;width:200px;background:var(--field)}
+.item{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 16px;border-top:1px solid var(--line);cursor:pointer}
+.item:hover{background:var(--soft)}
+.thumb{width:56px;height:56px;border-radius:10px;background:#fff;display:grid;place-items:center;overflow:hidden;border:1px solid var(--line)}
+.thumb img{max-width:92%;max-height:92%;object-fit:contain}
+.thumb.lg{width:132px;height:132px;border-radius:14px}
+.thumb.xl{width:100%;height:220px}
+.noimg{font-size:22px;opacity:.35}
+.nm{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.code{letter-spacing:.06em;font-size:13px;color:var(--muted)}
+.lowtag{text-align:right;line-height:1.2}
+.lowtag b{font-family:"Bricolage Grotesque";font-size:19px;letter-spacing:-.02em}
+.drop{color:var(--leaf);font-weight:700;font-size:13px}
+.empty{padding:44px 20px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-family:"Bricolage Grotesque";font-size:19px;margin-bottom:4px}
+.sl{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.sl:first-of-type{border-top:0}
+.dot{width:10px;height:10px;border-radius:3px;flex:none}
+
+/* ---------- product ---------- */
+.phead{display:grid;grid-template-columns:132px minmax(0,1fr) 300px;gap:22px;padding:20px;align-items:center}
+.pname{font-family:"Bricolage Grotesque";font-weight:800;font-size:30px;line-height:1.08;letter-spacing:-.03em;margin:4px 0 10px;text-wrap:balance}
+.meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pill{font-size:13px;font-weight:600;padding:4px 10px;border-radius:99px;background:var(--soft);border:1px solid var(--line)}
+.barcode{display:inline-flex;flex-direction:column;align-items:center;gap:2px}
+.barcode i{display:block;height:26px;width:148px}
+.barcode span{font-size:12.5px;letter-spacing:.32em;font-weight:600}
+.star{background:none;border:1px solid var(--line);border-radius:99px;padding:5px 11px;cursor:pointer;font-weight:600;font-size:13.5px;display:inline-flex;gap:5px;align-items:center}
+.star.on{background:var(--tag);border-color:var(--tag);color:var(--tag-ink)}
+
+/* your price: the store's own shelf label */
+.mine{background:var(--pine);color:#fff;border-radius:16px;padding:16px 18px;position:relative;overflow:hidden}
+.mine::after{content:"";position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.05)}
+.mine label{font-size:14px;font-weight:600;opacity:.85}
+.mine .in{display:flex;align-items:baseline;gap:2px;margin:2px 0 6px}
+.mine .in span{font-family:"Bricolage Grotesque";font-size:30px;font-weight:700;opacity:.8}
+.mine input{width:100%;background:transparent;border:0;border-bottom:2px dashed rgba(255,255,255,.3);color:#fff;font-family:"Bricolage Grotesque";font-size:44px;font-weight:800;letter-spacing:-.03em;padding:0;outline:none}
+.mine input:focus{border-bottom-color:var(--tag)}
+.mine input::placeholder{color:rgba(255,255,255,.35)}
+.verdict{font-size:14px;font-weight:600;min-height:20px}
+.mine .btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#fff;margin-top:8px}
+
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:16px 0;overflow:hidden}
+.summary div{padding:14px 18px;border-left:1px solid var(--line)}
+.summary div:first-child{border-left:0}
+.summary small{color:var(--muted);font-weight:600;font-size:13px}
+.summary b{display:block;font-family:"Bricolage Grotesque";font-size:26px;letter-spacing:-.02em;line-height:1.15}
+.summary .who{font-size:13.5px;color:var(--muted)}
+
+.toolbar{display:flex;gap:8px;align-items:center;margin:4px 0 12px;flex-wrap:wrap}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:6px 0 12px;position:sticky;top:var(--hh,64px);z-index:20;background:var(--bg);scrollbar-width:thin}
+.tab{flex:none;display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--paper);border-radius:12px;padding:8px 13px;cursor:pointer;font-weight:600;font-size:14.5px}
+.tab .tp{font-family:"Bricolage Grotesque";font-weight:700;color:var(--muted)}
+.tab.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.tab.on .tp{color:inherit;opacity:.75}
+.tab.low .tp{color:var(--leaf)}
+.tab.low.on .tp{color:var(--tag);opacity:1}
+
+/* ---------- shelf tags (the signature element) ---------- */
+.tags{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:14px}
+.tagc{position:relative;background:var(--paper);border:1px solid var(--line);border-radius:6px 18px 18px 6px;padding:16px 16px 14px 22px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--lift)}
+.tagc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:7px;background:var(--c);border-radius:6px 0 0 6px}
+.tagc .hole{position:absolute;right:16px;top:16px;width:11px;height:11px;border-radius:50%;background:var(--bg);box-shadow:inset 0 1px 2px rgba(0,0,0,.2)}
+.tagc.best{background:var(--tag);border-color:#e9b913;color:var(--tag-ink)}
+.tagc.best .muted,.tagc.best .code{color:#6b5300}
+.tagc.best .btn{background:rgba(255,255,255,.55);border-color:rgba(61,46,0,.18);color:var(--tag-ink)}
+.tagc.best .match{background:rgba(255,255,255,.5)}
+.tagc.busy .amt{opacity:.3}
+.sname{font-weight:700;font-size:15.5px;display:flex;gap:8px;align-items:center;padding-right:24px}
+.stamp{font-family:"Bricolage Grotesque";font-weight:800;font-size:13px;background:var(--pine);color:var(--tag);padding:2px 9px;border-radius:6px;transform:rotate(-3deg);display:inline-block}
+.amt{font-family:"Bricolage Grotesque";font-weight:800;font-size:46px;line-height:.95;letter-spacing:-.04em;display:flex;align-items:flex-start}
+.amt sup{font-size:22px;margin-top:5px;margin-right:2px;font-weight:700}
+.amt .c{font-size:22px;margin-top:5px;margin-left:1px}
+.amt.none{font-family:Figtree;font-size:17px;font-weight:600;color:var(--muted);letter-spacing:0;line-height:1.3;padding:10px 0}
+.cmp{font-size:13.5px;font-weight:700}
+.hi{color:var(--red)} .lo{color:var(--leaf)}
+.tagc.best .hi{color:#8a1d14} .tagc.best .lo{color:#0f5a36}
+.match{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;align-items:center;background:var(--soft);border-radius:10px;padding:7px}
+.match .thumb{width:44px;height:44px;border-radius:8px}
+.match p{margin:0;font-size:13px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.flag{font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;white-space:nowrap}
+.flag.exact{background:var(--leaf-bg);color:var(--leaf)}
+.flag.possible{background:var(--amber-bg);color:var(--amber)}
+.flag.pinned,.flag.manual{background:var(--blue-bg);color:var(--blue)}
+.tagc.best .flag{background:rgba(255,255,255,.6);color:var(--tag-ink)}
+.note{font-size:13px;padding:8px 10px;border-radius:9px;background:var(--amber-bg);color:var(--amber);line-height:1.35}
+.note.err{background:var(--red-bg);color:var(--red)}
+.foot{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;margin-top:auto;border-top:1px dashed var(--line);padding-top:10px}
+.tagc.best .foot{border-top-color:rgba(61,46,0,.25)}
+.age{display:inline-flex;align-items:center;gap:6px}
+.age::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.age.ok{color:var(--leaf)} .age.old{color:var(--amber)} .age.stale{color:var(--red)} .age.never{color:var(--muted)}
+.tagc.best .age{color:var(--tag-ink)}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.spark{display:block;width:72px;height:22px}
+.spin{width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--leaf);border-radius:50%;animation:s .7s linear infinite;display:inline-block;flex:none}
+@keyframes s{to{transform:rotate(1turn)}}
+@keyframes pop{from{transform:scale(.96);opacity:.4}to{transform:none;opacity:1}}
+.fresh-in{animation:pop .35s ease-out}
+
+/* detail */
+.detail{display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px;padding:22px}
+.detail .amt{font-size:64px}
+.ctab{width:100%;border-collapse:collapse;margin:14px 0}
+.ctab th,.ctab td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);font-size:14.5px;vertical-align:top}
+.ctab th{color:var(--muted);font-weight:600;width:120px}
+.ctab thead th{font-size:13px}
+.chart{width:100%;height:150px;display:block}
+
+/* settings */
+.sgrid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:18px;align-items:start}
+.alist .ar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--line);cursor:pointer;font-weight:600}
+.alist .ar.on{background:var(--leaf-bg);color:var(--leaf)}
+.alist .ar .ct{margin-left:auto;font-size:13px;color:var(--muted);font-weight:600}
+.srow{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 16px;border-top:1px solid var(--line)}
+.srow .u{grid-column:2/3;font-size:12.5px;color:var(--muted);word-break:break-all;margin-top:-6px}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.switch{position:relative;width:40px;height:23px;flex:none;display:inline-block}
+.switch input{opacity:0;width:0;height:0;position:absolute}
+.switch span{position:absolute;inset:0;background:var(--line);border-radius:99px;cursor:pointer;transition:.15s}
+.switch span::before{content:"";position:absolute;width:17px;height:17px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.switch input:checked+span{background:var(--leaf)}
+.switch input:checked+span::before{transform:translateX(17px)}
+.switch input:focus-visible+span{outline:3px solid var(--tag)}
+code{background:var(--soft);padding:1px 6px;border-radius:5px;font-size:13px}
+.help li{margin:4px 0}
+
+/* forms & modals */
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.field label{font-size:14px;font-weight:600}
+.field input,.field select{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--field);width:100%}
+.hint{font-size:13px;color:var(--muted)}
+.modal{position:fixed;inset:0;background:rgba(6,20,15,.6);display:grid;place-items:center;z-index:60;padding:16px;backdrop-filter:blur(3px)}
+.modal .box{background:var(--paper);border-radius:20px;max-width:520px;width:100%;padding:22px;max-height:92vh;overflow:auto;box-shadow:0 30px 80px -20px rgba(0,0,0,.5)}
+.modal h3{margin:0 0 14px;font-family:"Bricolage Grotesque";font-size:22px;letter-spacing:-.02em}
+.mfoot{display:flex;gap:8px;justify-content:flex-end;margin-top:6px;flex-wrap:wrap}
+#reader{width:100%;border-radius:14px;overflow:hidden;background:#000;min-height:260px}
+.menu{position:absolute;right:max(16px,env(safe-area-inset-right,0px));top:56px;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 50px -15px rgba(0,0,0,.4);padding:6px;min-width:210px;z-index:40}
+.menu button{display:flex;width:100%;text-align:left;border:0;background:none;padding:10px 12px;border-radius:9px;cursor:pointer;font-weight:600;gap:10px}
+.menu button:hover{background:var(--soft)}
+.menu hr{border:0;border-top:1px solid var(--line);margin:4px 6px}
+
+/* auth */
+.auth{min-height:100vh;display:grid;grid-template-columns:1.1fr 1fr;background:var(--pine)}
+.auth .art{color:#fff;padding:56px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.auth .art h1{font-family:"Bricolage Grotesque";font-weight:800;font-size:clamp(40px,6vw,76px);line-height:.95;letter-spacing:-.045em;margin:0;max-width:10ch}
+.auth .art p{opacity:.8;max-width:38ch;font-size:17px}
+.demo{display:flex;gap:12px;flex-wrap:wrap}
+.demo .tagc{width:190px;color:var(--ink);background:#fff;border-color:transparent}
+.demo .tagc.best{background:var(--tag);color:var(--tag-ink)}
+.demo .amt{font-size:38px}
+.auth .formside{background:var(--bg);display:grid;place-items:center;padding:30px}
+.auth form{width:100%;max-width:360px}
+.banner{max-width:1200px;margin:16px auto 0;background:var(--amber-bg);color:var(--amber);border-radius:14px;padding:14px 16px;font-weight:600;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.banner .btn{margin-left:auto}
+.testbox{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:14px;display:flex;flex-direction:column;gap:8px}
+.testbox label{font-size:14px;font-weight:600}
+.testrow{display:flex;gap:8px}
+.testrow input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--field)}
+.testbox .hint{margin:0}
+.testbox .ok{color:var(--leaf);font-weight:600}
+.testbox .bad{color:var(--red);font-weight:600}
+.pill.auto{background:var(--leaf-bg);color:var(--leaf);border-color:transparent}
+/* nav */
+.nav{background:var(--head);border-top:1px solid rgba(255,255,255,.08)}
+.navin{max-width:1200px;margin:0 auto;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.navin::-webkit-scrollbar{display:none}
+.navin button{flex:none;background:none;border:0;color:rgba(255,255,255,.72);font-weight:650;font-size:14.5px;padding:12px 12px 11px;border-bottom:3px solid transparent;cursor:pointer;display:flex;gap:6px;align-items:center}
+.navin button:hover{color:#fff}
+.navin button.on{color:#fff;border-bottom-color:var(--tag)}
+.navin .n{background:var(--tag);color:var(--tag-ink);border-radius:99px;font-size:11.5px;padding:0 7px;font-weight:800}
+/* dashboard */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px 16px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.kpi:hover{border-color:var(--leaf)}
+.kpi small{color:var(--muted);font-weight:600;font-size:13px;display:block}
+.kpi b{font-family:"Bricolage Grotesque",Figtree,sans-serif;font-size:30px;letter-spacing:-.03em;line-height:1.1;display:block;margin:2px 0}
+.kpi span{font-size:13px;color:var(--muted)}
+.kpi.good b{color:var(--leaf)} .kpi.bad b{color:var(--red)}
+.pagehead{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.pagehead h1{font-family:"Bricolage Grotesque",Figtree,sans-serif;font-size:30px;letter-spacing:-.03em;margin:0;line-height:1.1}
+.pagehead p{margin:4px 0 0;color:var(--muted)}
+.pagehead .tools{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pagehead input{border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--field);width:200px}
+/* compare table */
+.gridwrap{overflow-x:auto;border:1px solid var(--line);border-radius:16px;background:var(--paper)}
+table.grid{border-collapse:separate;border-spacing:0;width:100%;font-variant-numeric:tabular-nums}
+.grid th,.grid td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-size:14.5px}
+.grid th{position:sticky;top:0;background:var(--soft);font-size:13px;font-weight:700;color:var(--muted);z-index:1}
+.grid th:first-child,.grid td:first-child{text-align:left;position:sticky;left:0;background:var(--paper);z-index:2;min-width:220px;max-width:300px;white-space:normal}
+.grid th:first-child{background:var(--soft);z-index:3}
+.grid tr{cursor:pointer}
+.grid tbody tr:hover td{background:var(--soft)}
+.grid td.low{background:var(--tag);color:var(--tag-ink);font-weight:800}
+.grid tbody tr:hover td.low{background:var(--tag)}
+.grid td.you{color:var(--muted);font-weight:700}
+.grid td.na{color:var(--line)}
+.grid .it{display:flex;gap:10px;align-items:center}
+.grid .it .thumb{width:38px;height:38px;border-radius:8px;flex:none}
+.grid .it b{font-weight:650;font-size:14px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.dotsm{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:1px}
+.dsync{margin-bottom:14px;overflow:hidden}
+.dsync summary{padding:12px 16px;font-weight:700;cursor:pointer}
+.dstore{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--line);flex-wrap:wrap}
+.dstore .dn{flex:1;min-width:180px} .dstore .dn span:last-child{display:block;font-size:13px;color:var(--muted)}
+.dstore.err .dn span:last-child{color:var(--red)}
+.dstore select{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--field);color:var(--ink);font:inherit;font-size:14px}
+.dnote{padding:28px 18px;text-align:center;color:var(--muted)}
+.grid td.hi{color:var(--red);font-weight:700} .grid td.lo{color:var(--leaf);font-weight:700}
+.approx{color:var(--muted);font-weight:600;margin-left:3px}
+/* list */
+.listgrid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px;align-items:start}
+.qty{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.qty button{border:0;background:var(--soft);width:32px;height:32px;cursor:pointer;font-weight:800;font-size:16px}
+.qty span{min-width:30px;text-align:center;font-weight:700}
+.storetot{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+.storetot:first-of-type{border-top:0}
+.storetot b{font-family:"Bricolage Grotesque",Figtree,sans-serif;font-size:19px}
+.storetot.best b{color:var(--leaf)}
+.bigsave{background:var(--pine);color:#fff;border-radius:16px;padding:16px 18px;margin-bottom:14px}
+.bigsave b{font-family:"Bricolage Grotesque",Figtree,sans-serif;font-size:34px;display:block;letter-spacing:-.03em}
+.status{font-size:12.5px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.status.above{background:var(--red-bg);color:var(--red)} .status.below{background:var(--leaf-bg);color:var(--leaf)} .status.match{background:var(--blue-bg);color:var(--blue)}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.listgrid{grid-template-columns:1fr}.pagehead input{width:100%}.pagehead .tools{margin-left:0;width:100%}}
+body:not(.is-admin) .admin-only{display:none!important}
+.bellpanel{width:min(380px,calc(100vw - 32px));max-height:70vh;overflow:auto;padding:0}
+.bellpanel .bh{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--paper)}
+.bellpanel .bh b{flex:1;white-space:nowrap}
+.notif{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer;text-align:left;background:none;border-left:0;border-right:0;border-top:0;width:100%;font:inherit;color:inherit}
+.notif:hover{background:var(--soft)}
+.notif.unread{background:var(--leaf-bg)}
+.notif .thumb{width:44px;height:44px;border-radius:8px}
+.notif p{margin:0;font-size:14px;line-height:1.35}
+.notif small{color:var(--muted);font-size:12.5px}
+.chk{display:flex;flex-wrap:wrap;gap:8px}
+.chk label{white-space:nowrap;display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:7px 10px;cursor:pointer;font-weight:600;font-size:14px;background:var(--field)}
+.chk input{accent-color:var(--leaf)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font-size:12.5px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--soft);border:1px solid var(--line)}
+.role{font-size:12px;font-weight:800;padding:2px 8px;border-radius:6px;background:var(--blue-bg);color:var(--blue)}
+.role.admin{background:var(--tag);color:var(--tag-ink)}
+.urow{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) auto;gap:14px;align-items:center;padding:14px 16px;border-top:1px solid var(--line)}
+.urow:first-child{border-top:0}
+.drop{border:2px dashed var(--line);border-radius:16px;padding:28px;text-align:center;cursor:pointer;background:var(--paper)}
+.drop:hover,.drop.over{border-color:var(--leaf);background:var(--leaf-bg)}
+.drop b{font-family:"Bricolage Grotesque",Figtree,sans-serif;font-size:20px;display:block;margin-bottom:4px}
+.maprow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:14px}
+.bar2{height:12px;border-radius:99px;background:var(--soft);overflow:hidden;border:1px solid var(--line)}
+.bar2 i{display:block;height:100%;background:var(--leaf);width:0;transition:width .3s}
+.bulkstat{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:14px 0}
+.noaccess{max-width:520px;margin:10vh auto;text-align:center}
+@media (max-width:700px){.urow{grid-template-columns:1fr}.maprow{grid-template-columns:1fr 1fr}}
+.toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:12px;font-weight:600;z-index:80;font-size:14.5px;max-width:92vw;box-shadow:0 10px 30px -10px rgba(0,0,0,.4)}
+
+@media (max-width:900px){
+  .phead{grid-template-columns:96px minmax(0,1fr)}
+  .thumb.lg{width:96px;height:96px}
+  .mine{grid-column:1/-1}
+  .pname{font-size:23px}
+  .homegrid,.sgrid{grid-template-columns:1fr}
+  .detail{grid-template-columns:1fr}
+  .auth{grid-template-columns:1fr}
+  .auth .art{padding:36px 24px}
+  .demo .tagc:nth-child(3){display:none}
+}
+@media (max-width:420px){ .logo span{display:none} }
+@media (max-width:560px){
+  header{position:relative}
+  .tabs{top:0}
+  .area{min-width:0}
+  .area select{max-width:38vw;overflow:hidden;text-overflow:ellipsis}
+  .bar{gap:4px}
+  .logo span{font-size:17px}
+  .area{margin-left:4px;padding-left:9px}
+  .area small,.hb .lbl,.cam .lbl{display:none}
+  .scan{padding-block:0 16px}
+  .scan form{flex-wrap:wrap}
+  .scanbox{flex-basis:100%}
+  .go{flex:1;padding:12px}
+  .summary{grid-template-columns:1fr 1fr}
+  .summary div:nth-child(3){display:none}
+  main{padding-block:16px 70px}
+  .ihead input{width:100%;margin-left:0}
+  .tags{grid-template-columns:1fr}
+}
+</style>
+
+<!-- ============ SIGN IN ============ -->
+<section id="authView" class="auth hidden">
+  <div class="art">
+    <div class="logo" style="cursor:default"><svg width="34" height="34" viewBox="0 0 64 64"><path d="M8 12h30l18 20-18 20H8z" fill="#ffd23f"/><circle cx="18" cy="32" r="5" fill="#0e3b2e"/></svg><span>Shelf Price Checker</span></div>
+    <div>
+      <h1>Scan it once. See every shelf.</h1>
+      <p>Scan a barcode and get the price at every store you pick, side by side, with the cheapest one marked. Set up different stores for each area you buy in.</p>
+    </div>
+    <div class="demo" aria-hidden="true">
+      <div class="tagc" style="--c:#0071ce"><div class="sname">Store A</div><div class="amt"><sup>$</sup>4<span class="c">.49</span></div></div>
+      <div class="tagc best" style="--c:#1f7a4f"><div class="sname">Store B <span class="stamp">Lowest</span></div><div class="amt"><sup>$</sup>3<span class="c">.79</span></div></div>
+      <div class="tagc" style="--c:#cc0000"><div class="sname">Store C</div><div class="amt"><sup>$</sup>4<span class="c">.99</span></div></div>
+    </div>
+  </div>
+  <div class="formside">
+    <form id="authForm">
+      <h2 id="aTitle" style="font-size:28px">Sign in</h2>
+      <p class="muted" style="margin:0 0 20px" id="aSub">Welcome back.</p>
+      <div class="field"><label for="aEmail">Email</label><input id="aEmail" type="email" required autocomplete="email"></div>
+      <div class="field"><label for="aPass">Password</label><input id="aPass" type="password" required minlength="6" autocomplete="current-password"></div>
+      <button class="btn pri" style="width:100%;justify-content:center;padding:12px;font-size:16px" id="aBtn">Sign in</button>
+      <p class="small muted" style="text-align:center;margin:16px 0 0">Forgot your password, or need an account? Ask your admin.</p>
+      <p class="small" id="aMsg" role="status" style="text-align:center"></p>
+    </form>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<header id="hdr" class="hidden">
+  <div class="bar">
+    <button class="logo" id="goHome" title="Back to the main page"><svg width="30" height="30" viewBox="0 0 64 64"><path d="M8 12h30l18 20-18 20H8z" fill="#ffd23f"/><circle cx="18" cy="32" r="5" fill="#0e3b2e"/></svg><span>Shelf Price Checker</span></button>
+    <label class="area" title="Which area's stores to check"><small>Area</small><select id="areaSel" aria-label="Area"></select></label>
+    <div class="sp"></div>
+    <button class="hb" id="bellBtn" aria-label="Price-drop alerts">🔔 <span class="lbl">Alerts</span> <span class="n hidden" id="bellN"></span></button>
+    <button class="hb admin-only" id="goSettings">⚙ <span class="lbl">Areas &amp; stores</span></button>
+    <button class="hb" id="menuBtn" aria-haspopup="true" aria-label="More">⋯</button>
+  </div>
+  <div class="menu hidden" id="menu" role="menu">
+    <div class="small muted" id="mWho" style="padding:8px 12px 4px"></div>
+    <button id="mTheme">◐ <span id="mThemeT">Dark mode</span></button>
+    <button id="mPass">🔑 Change my password</button>
+    <hr>
+    <button id="mSignOut">⎋ Sign out</button>
+  </div>
+  <div class="menu bellpanel hidden" id="bellPanel" role="dialog" aria-label="Alerts">
+    <div class="bh"><b>Price drops</b><button class="btn sm q" id="bellPerm">Phone alerts</button><button class="btn sm q" id="bellRead">Mark all read</button></div>
+    <div id="bellList"></div>
+  </div>
+  <div class="scan">
+    <form id="scanForm" autocomplete="off">
+      <label class="scanbox"><i class="bars" aria-hidden="true"></i><input id="code" inputmode="numeric" placeholder="Scan or type a barcode" aria-label="Barcode"><button type="button" class="cam" id="camBtn">📷 <span class="lbl">Photo</span></button></label>
+      <button class="go" type="submit">Check prices</button>
+    </form>
+  </div>
+  <nav class="nav" aria-label="Sections"><div class="navin" id="nav">
+    <button data-v="home" class="on">Dashboard</button>
+    <button data-v="daily">Who's cheaper</button>
+    <button data-v="compare">Compare all</button>
+    <button data-v="list">My list <span class="n hidden" id="listN"></span></button>
+    <button data-v="report">Price report</button>
+    <button data-v="bulk">Excel check</button>
+    <button data-v="users" class="admin-only">Users</button>
+    <button data-v="settings" class="admin-only">Areas &amp; stores</button>
+  </div></nav>
+</header>
+
+<main id="app" class="hidden">
+  <div class="banner hidden" id="connBanner" role="status"><span id="connMsg">Connecting to your database…</span><button class="btn sm" id="connRetry">Try again</button></div>
+  <!-- HOME -->
+  <section id="homeView">
+    <div class="kpis" id="kpis"></div>
+    <div class="homegrid">
+      <div class="card">
+        <div class="ihead">
+          <div class="seg" id="homeSeg"><button data-h="recent" class="on">Recent</button><button data-h="watch">Watchlist</button><button data-h="drops">Price drops</button></div>
+          <input id="filter" placeholder="Find an item" aria-label="Find an item">
+        </div>
+        <div id="items"></div>
+      </div>
+      <aside class="card" style="padding:18px;align-self:start">
+        <h2 id="areaTitle">Stores</h2>
+        <p class="small muted" style="margin:0 0 10px">Every barcode you check is priced at these stores.</p>
+        <div id="homeStores"></div>
+        <button class="btn admin-only" id="homeManage" style="margin-top:14px">Change stores</button>
+        <p class="hint" style="margin:18px 0 0">A handheld USB or Bluetooth scanner works here too. Just scan, no need to click first.</p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- COMPARE -->
+  <section id="compareView" class="hidden">
+    <div class="pagehead">
+      <div><h1>Compare all items</h1><p id="cmpSub">Every item you've checked, at every store in this area.</p></div>
+      <div class="tools">
+        <div class="seg" id="cmpSeg"><button data-f="all" class="on">All</button><button data-f="2">In 2+ stores</button><button data-f="4">In 4+ stores</button><button data-f="above">You're higher</button></div>
+        <input id="cmpFilter" placeholder="Find an item" aria-label="Find an item">
+      </div>
+    </div>
+    <div class="gridwrap" id="cmpGrid"></div>
+  </section>
+
+  <!-- LIST -->
+  <section id="listView" class="hidden">
+    <div class="pagehead">
+      <div><h1>My list</h1><p>Add items from any item page. See which store is cheapest for the whole list.</p></div>
+      <div class="tools"><button class="btn" id="listCopy">Copy for WhatsApp</button><button class="btn danger" id="listClear">Clear list</button></div>
+    </div>
+    <div class="listgrid">
+      <div class="card" id="listItems" style="overflow:hidden"></div>
+      <aside id="listTotals"></aside>
+    </div>
+  </section>
+
+  <!-- REPORT -->
+  <section id="reportView" class="hidden">
+    <div class="pagehead">
+      <div><h1>Price report</h1><p>Your selling price against the cheapest store, item by item.</p></div>
+      <div class="tools"><div class="seg" id="repSeg"><button data-f="all" class="on">All</button><button data-f="above">You're higher</button><button data-f="below">You're cheapest</button><button data-f="none">No price set</button></div></div>
+    </div>
+    <div class="kpis" id="repKpis"></div>
+    <div class="gridwrap" id="repGrid"></div>
+  </section>
+
+  <!-- NO ACCESS -->
+  <section id="noView" class="hidden">
+    <div class="card noaccess" style="padding:28px">
+      <h2 id="noTitle">No access yet</h2>
+      <p class="muted" id="noMsg">Your account isn't set up for the price checker. Ask your admin to add you.</p>
+      <button class="btn" id="noSignOut">Sign out</button>
+    </div>
+  </section>
+
+  <!-- EXCEL BULK CHECK -->
+  <section id="bulkView" class="hidden">
+    <div class="pagehead">
+      <div><h1>Excel check</h1><p>Upload a sheet of items and get every store's price for all of them.</p></div>
+      <div class="tools"><button class="btn" id="bulkTemplate">Download a blank sheet</button></div>
+    </div>
+    <div id="bulkStep1">
+      <label class="drop" id="bulkDrop"><b>Drop your Excel or CSV file here</b><span class="muted">or tap to choose a file (.xlsx, .xls, .csv)</span><input type="file" id="bulkFile" accept=".xlsx,.xls,.csv" hidden></label>
+      <p class="hint" style="margin-top:10px">One row per item. A barcode column is required. An item name column and a your-price column are optional.</p>
+    </div>
+    <div id="bulkStep2" class="hidden card" style="padding:18px">
+      <h2 id="bulkFileName" style="font-size:19px">Your file</h2>
+      <p class="muted small" id="bulkCount" style="margin:0"></p>
+      <div class="maprow">
+        <div class="field"><label for="mapCode">Barcode column</label><select id="mapCode"></select></div>
+        <div class="field"><label for="mapName">Item name column</label><select id="mapName"></select></div>
+        <div class="field"><label for="mapPrice">Your price column</label><select id="mapPrice"></select></div>
+        <div class="field"><label for="bulkArea">Check stores in</label><select id="bulkArea"></select></div>
+      </div>
+      <div class="gridwrap" id="bulkPreview" style="max-height:260px"></div>
+      <div class="mfoot" style="margin-top:14px"><button class="btn" id="bulkReset">Choose another file</button><button class="btn pri" id="bulkStart">Check all prices</button></div>
+    </div>
+    <div id="bulkStep3" class="hidden">
+      <div class="bulkstat">
+        <div style="flex:1;min-width:220px"><div class="bar2"><i id="bulkBar"></i></div></div>
+        <b id="bulkProg">0 of 0</b>
+        <button class="btn" id="bulkStop">Stop</button>
+        <button class="btn pri" id="bulkDownload">Download results (Excel)</button>
+        <button class="btn" id="bulkNew">New file</button>
+      </div>
+      <p class="hint" id="bulkHint">Keep this page open while it checks. You can download the results at any time.</p>
+      <div class="gridwrap" id="bulkGrid"></div>
+    </div>
+  </section>
+
+  <!-- USERS -->
+  <section id="usersView" class="hidden">
+    <div class="pagehead">
+      <div><h1>Users</h1><p>Add the people who use the price checker and choose which locations each one sees.</p></div>
+      <div class="tools"><button class="btn pri" id="addUser">+ Add user</button></div>
+    </div>
+    <div class="card" id="userList" style="overflow:hidden"></div>
+  </section>
+
+  <!-- WHO'S CHEAPER -->
+  <section id="dailyView" class="hidden">
+    <div class="pagehead">
+      <div><h1>Who's cheaper</h1><p id="dailySub"></p></div>
+      <div class="tools"><input id="dailyQ" type="search" placeholder="Search item or barcode" aria-label="Search items"><button class="btn" id="dailyCopy">Download Excel</button></div>
+    </div>
+    <div class="kpis" id="dailyKpis"></div>
+    <details class="card dsync" open><summary>Stores and update schedule</summary><div id="dailyStores"></div></details>
+    <div class="seg" id="dailySeg" style="margin-bottom:12px"><button data-f="higher" class="on">Someone is cheaper</button><button data-f="cheaper">You're cheapest</button><button data-f="same">Same price</button><button data-f="all">All compared</button><button data-f="alone">Only at your store</button></div>
+    <div class="gridwrap" id="dailyGrid"></div>
+    <div id="dailyMoreBox" style="text-align:center;margin:14px 0"></div>
+  </section>
+
+  <!-- PRODUCT -->
+  <section id="prodView" class="hidden">
+    <div class="card phead" id="prodHead"></div>
+    <div class="card summary hidden" id="summary"></div>
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div id="tabBody"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="setView" class="hidden">
+    <div class="sgrid">
+      <div class="card alist" style="overflow:hidden">
+        <div style="padding:16px 14px 12px;display:flex;align-items:center;gap:8px"><h2 style="margin:0;flex:1">Areas</h2><button class="btn sm" id="addArea">+ Add area</button></div>
+        <div id="areaList"></div>
+      </div>
+      <div>
+        <div class="card" style="overflow:hidden;margin-bottom:18px">
+          <div style="padding:16px 16px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <h2 style="margin:0;flex:1" id="setAreaName">Stores</h2>
+            <button class="btn sm" id="renameArea">Rename</button>
+            <button class="btn sm danger" id="delArea">Delete area</button>
+            <button class="btn sm pri" id="addStore">+ Add store</button>
+          </div>
+          <div id="storeList"></div>
+        </div>
+        <div class="card" style="padding:18px;margin-bottom:18px" id="helperCard">
+          <h2>Browser helper</h2>
+          <p class="small" style="margin-top:0">Evergreen, Gourmet Glatt, NPGS, Foodex, Glatt Mart, Kosher Corner, Pomegranate and Shop Smart only open in a real browser. The Price Checker helper is a small Chrome add-on that searches them for you in a background window, so their prices show up with all the other stores.</p>
+          <p class="small" id="helperState"></p>
+          <a class="btn sm pri" href="price-checker-helper.zip" download>Download the helper</a>
+          <ol class="small" style="margin:12px 0 0;padding-left:18px;line-height:1.7">
+            <li>Unzip the download.</li>
+            <li>In Chrome, go to <code>chrome://extensions</code> and turn on <b>Developer mode</b> (top right).</li>
+            <li>Click <b>Load unpacked</b> and pick the unzipped <b>price-checker-helper</b> folder.</li>
+            <li>Reload this page. The line above turns green.</li>
+          </ol>
+        </div>
+        <div class="card" style="padding:18px">
+          <h2>Quick add</h2>
+          <p class="hint" style="margin:0 0 10px">Adds the store to this area with its search link filled in. You can edit it after.</p>
+          <div class="presets" id="presets"></div>
+          <h2 style="margin-top:24px">Adding a store</h2>
+          <p class="small">Paste the store's website. If it runs on My Cloud Grocer or Shopify, the checker finds its product search by itself and checks prices automatically. Use <b>Run test</b> in the store form to see it work before you save.</p>
+          <p class="small">For other sites, use the store's search link: search for any item on their site, copy the address of the results page, and replace your search words with <code>{barcode}</code> (or <code>{name}</code> for sites that only search by name).</p>
+          <p class="small muted">Some sites turn automated checks away. Those stores are marked "Prices by hand": their tag has an Open button to look the price up, and you type it in.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ============ MODALS ============ -->
+<div class="modal hidden" id="mStore" role="dialog" aria-modal="true"><div class="box">
+  <h3 id="mStoreT">Add store</h3>
+  <form id="storeForm">
+    <div class="field"><label for="sName">Store name</label><input id="sName" required maxlength="60"></div>
+    <div class="field"><label for="sUrl">Website or search link</label><input id="sUrl" required placeholder="https://www.store.com/search?q={barcode}"><span class="hint">For automatic price checks, use the store's search link with <code>{barcode}</code> where the barcode goes. Just the website works too: you'll enter that store's prices by hand.</span></div>
+    <div class="field"><label for="sArea">Area</label><select id="sArea"></select></div>
+    <div class="field"><label for="sColor">Tag color</label><input id="sColor" type="color" value="#1f7a4f" style="height:44px;padding:4px"></div>
+    <div class="testbox">
+      <label for="sTestCode">Test this store</label>
+      <div class="testrow"><input id="sTestCode" inputmode="numeric" placeholder="Barcode, e.g. 049000050134"><button type="button" class="btn" id="sTest">Run test</button></div>
+      <p class="hint" id="sTestOut" role="status">Checks the link above with a real barcode before you save.</p>
+    </div>
+    <div class="mfoot"><button type="button" class="btn danger hidden" id="sDel" style="margin-right:auto">Delete store</button><button type="button" class="btn" data-close>Cancel</button><button class="btn pri">Save store</button></div>
+  </form>
+</div></div>
+
+<div class="modal hidden" id="mArea" role="dialog" aria-modal="true"><div class="box">
+  <h3 id="mAreaT">Add area</h3>
+  <form id="areaForm">
+    <div class="field"><label for="arName">Area name</label><input id="arName" required maxlength="60" placeholder="Monsey, Brooklyn, Lakewood…"></div>
+    <div class="field hidden" id="copyWrap"><label for="arCopy">Start with stores from</label><select id="arCopy"><option value="">No stores (I'll add them)</option></select></div>
+    <div class="mfoot"><button type="button" class="btn" data-close>Cancel</button><button class="btn pri" id="arBtn">Save area</button></div>
+  </form>
+</div></div>
+
+<div class="modal hidden" id="mManual" role="dialog" aria-modal="true"><div class="box">
+  <h3 id="mManT">Enter price</h3>
+  <form id="manForm">
+    <div class="field"><label for="mPrice">Price</label><input id="mPrice" type="number" step="0.01" min="0.01" required inputmode="decimal" placeholder="0.00"></div>
+    <div class="field"><label for="mName">Name at this store (optional)</label><input id="mName" maxlength="300"></div>
+    <div class="field"><label for="mSize">Package size (optional)</label><input id="mSize" maxlength="60"></div>
+    <div class="mfoot"><button type="button" class="btn" data-close>Cancel</button><button class="btn pri">Save price</button></div>
+  </form>
+</div></div>
+
+<div class="modal hidden" id="mPin" role="dialog" aria-modal="true"><div class="box">
+  <h3 id="mPinT">Item page link</h3>
+  <p class="small muted" style="margin-top:-6px">Paste the link to this exact item on the store's website. Checks will go straight to it instead of searching.</p>
+  <form id="pinForm">
+    <div class="field"><label for="pUrl">Link</label><input id="pUrl" type="url" placeholder="https://"></div>
+    <div class="mfoot"><button type="button" class="btn danger" id="pClear" style="margin-right:auto">Remove link</button><button type="button" class="btn" data-close>Cancel</button><button class="btn pri">Save and check</button></div>
+  </form>
+</div></div>
+
+<div class="modal hidden" id="mProd" role="dialog" aria-modal="true"><div class="box">
+  <h3>Edit item</h3>
+  <form id="prodForm">
+    <div class="field"><label for="eName">Name</label><input id="eName" maxlength="300"></div>
+    <div class="field"><label for="eBrand">Brand</label><input id="eBrand" maxlength="120"></div>
+    <div class="field"><label for="eSize">Package size</label><input id="eSize" maxlength="60"></div>
+    <div class="field"><label for="eImg">Picture link</label><input id="eImg" type="url"></div>
+    <div class="mfoot"><button type="button" class="btn danger admin-only" id="eDel" style="margin-right:auto">Delete item</button><button type="button" class="btn" data-close>Cancel</button><button class="btn pri">Save item</button></div>
+  </form>
+</div></div>
+
+<div class="modal hidden" id="mUser" role="dialog" aria-modal="true"><div class="box">
+  <h3 id="mUserT">Add user</h3>
+  <form id="userForm">
+    <div class="field"><label for="uName">Name</label><input id="uName" maxlength="80" required></div>
+    <div class="field"><label for="uEmail">Email (they sign in with this)</label><input id="uEmail" type="email" required autocomplete="off"></div>
+    <div class="field"><label for="uPass" id="uPassL">Password</label><input id="uPass" type="text" minlength="8" autocomplete="new-password" placeholder="At least 8 characters"><span class="hint" id="uPassH">Give this password to the person. They can change it later from the ⋯ menu.</span></div>
+    <div class="field"><label for="uRole">Access</label><select id="uRole"><option value="user">User: checks prices at their locations</option><option value="admin">Admin: everything, including users and stores</option></select></div>
+    <div class="field"><label>Locations they can see</label><div class="chk" id="uAreas"></div><span class="hint">Admins see every location.</span></div>
+    <div class="mfoot"><button type="button" class="btn danger hidden" id="uDel" style="margin-right:auto">Remove user</button><button type="button" class="btn" data-close>Cancel</button><button class="btn pri" id="uSave">Save user</button></div>
+  </form>
+</div></div>
+
+<div class="modal hidden" id="mAlert" role="dialog" aria-modal="true"><div class="box">
+  <h3>Price-drop alert</h3>
+  <p class="small muted" id="mAlertItem" style="margin-top:-6px"></p>
+  <form id="alertForm">
+    <div class="field"><label for="alStore">Alert me when the price drops at</label><select id="alStore"></select></div>
+    <div class="field"><label for="alBelow">Only when it's below (optional)</label><input id="alBelow" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="Any drop"></div>
+    <p class="hint">Items with an alert are rechecked automatically every day. Alerts show under 🔔 at the top, and on your phone or computer if you turn on phone alerts.</p>
+    <div class="mfoot"><button type="button" class="btn danger hidden" id="alOff" style="margin-right:auto">Turn off alert</button><button type="button" class="btn" data-close>Cancel</button><button class="btn pri">Save alert</button></div>
+  </form>
+</div></div>
+
+<div class="modal hidden" id="mPassM" role="dialog" aria-modal="true"><div class="box">
+  <h3>Change my password</h3>
+  <form id="passForm">
+    <div class="field"><label for="pNew">New password</label><input id="pNew" type="password" minlength="8" required autocomplete="new-password"></div>
+    <div class="field"><label for="pNew2">Type it again</label><input id="pNew2" type="password" minlength="8" required autocomplete="new-password"></div>
+    <div class="mfoot"><button type="button" class="btn" data-close>Cancel</button><button class="btn pri">Save password</button></div>
+  </form>
+</div></div>
+
+<input type="file" accept="image/*" capture="environment" id="camFile" hidden>
+<div id="reader" hidden></div>
+
+<div class="toast hidden" id="toast" role="status"></div>
+
+<script>
+// ================= data layer (website) =================
+const SUPABASE_URL = "https://vqwhjyoosfiyfzcjzyxn.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxd2hqeW9vc2ZpeWZ6Y2p6eXhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwMjYzODgsImV4cCI6MjEwNzYwMjM4OH0.TQTteWUp6NN3DKdcFGrazzjd9R2qR1dKhw89iNzBfFo";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: true, storageKey: "pc-auth" } });
+async function call(body) {
+  const { data, error } = await sb.functions.invoke("pc-check", { body });
+  if (error) { let m = error.message; try { m = (await error.context.json()).error || m; } catch {} throw new Error(m); }
+  return data;
+}
+
+// ---- Price Checker helper (Chrome add-on): searches store sites that only open in a real browser ----
+let helperOK = false, helperSeq = 0;
+const helperWaits = {};
+window.addEventListener("message", (e) => {
+  if (e.source !== window || e.origin !== location.origin) return;
+  const d = e.data;
+  if (!d || typeof d !== "object") return;
+  if (d.pcHelper === "ready") { helperOK = true; paintHelper(); return; }
+  if (d.pcHelper === "res" && helperWaits[d.id]) { helperOK = true; helperWaits[d.id](d); delete helperWaits[d.id]; }
+});
+function helperAsk(msg, ms = 60000) {
+  return new Promise((resolve) => {
+    const id = "h" + (++helperSeq);
+    const t = setTimeout(() => { delete helperWaits[id]; resolve({ ok: false, error: "timeout" }); }, ms);
+    helperWaits[id] = (d) => { clearTimeout(t); resolve(d); };
+    window.postMessage({ pcHelper: "req", id, ...msg }, location.origin);
+  });
+}
+function paintHelper() {
+  const el = document.getElementById("helperState");
+  if (el) el.innerHTML = helperOK ? `<b style="color:var(--leaf)">● Helper is on in this browser.</b>` : `<b style="color:#b45309">● Helper not found in this browser.</b> Those stores show "Install the helper" until it's added.`;
+}
+helperAsk({ kind: "ping" }, 3000).then(paintHelper);
+document.addEventListener("DOMContentLoaded", paintHelper);
+const HELPER_MSG = "This store's site only opens in a real browser. Install the Price Checker helper in Chrome (Settings → Browser helper) and its prices will show up here automatically.";
+// Check one store. Stores that need the browser come back with the searches to run; the helper runs them and the server reads the results.
+async function storeCheck(body, s) {
+  const r = await call(body);
+  if (r?.status !== "needs_browser") return r;
+  const keep = (product?.id === body.product_id && prices[s.id]) || {};
+  if (!helperOK) return { ...keep, store_id: s.id, status: keep.price != null ? keep.status : "blocked", message: HELPER_MSG };
+  let origin = ""; try { origin = new URL(s.search_url.replace(/\{\w+\}/g, "x")).origin; } catch {}
+  const h = await helperAsk({ kind: "fetch", origin, urls: r.requests });
+  if (!h.ok) return { ...keep, store_id: s.id, status: "error", message: h.error === "timeout" ? "The helper took too long. Press Refresh to try again." : `The helper couldn't open ${s.name}'s site. Open it once in Chrome, then press Refresh.` };
+  return call({ ...body, pages: h.pages });
+}
+
+const PRESETS = [
+  { name: "Walmart", url: "https://www.walmart.com/search?q={barcode}", color: "#0071ce" },
+  { name: "Target", url: "https://www.target.com/s?searchTerm={barcode}", color: "#cc0000" },
+  { name: "Amazon", url: "https://www.amazon.com/s?k={barcode}", color: "#ff9900" },
+  { name: "ShopRite", url: "https://www.shoprite.com/sm/pickup/rsid/3000/results?q={barcode}", color: "#d71920" },
+  { name: "Stop & Shop", url: "https://stopandshop.com/search?searchTerm={barcode}", color: "#e21836" },
+  { name: "Kroger", url: "https://www.kroger.com/search?query={barcode}", color: "#134b97" },
+  { name: "Costco", url: "https://www.costco.com/s?keyword={barcode}", color: "#005daa" },
+  { name: "Shopify store", url: "https://STORE-WEBSITE.com/search/suggest.json?q={barcode}&resources[type]=product", color: "#5e8e3e" },
+];
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+let user = null, areas = [], stores = [], areaId = null, setAreaId = null;
+let product = null, prices = {}, history = [], activeTab = "all", busy = new Set(), openSeq = 0;
+const bk = (sid, pid = product?.id) => pid + "|" + sid;
+const isBusy = (sid) => busy.has(bk(sid));
+const busyHere = () => [...busy].filter((k) => k.startsWith(product?.id + "|")).length;
+let homeMode = "recent", itemsCache = [], dropsCache = [];
+let editStore = null, editArea = null, editPriceStore = null;
+
+// ================= helpers =================
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const safeUrl = (u) => { try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.toString() : ""; } catch { return ""; } };
+const money = (n) => n == null || isNaN(n) ? "—" : "$" + Number(n).toFixed(2);
+const safeColor = (c) => /^#[0-9a-f]{3,8}$/i.test(c || "") ? c : "#6b7c74";
+function bigPrice(n) { const [d, c] = Number(n).toFixed(2).split("."); return `<sup>$</sup>${d}<span class="c">.${c}</span>`; }
+function thumb(u, cls = "") { const s = safeUrl(u); return `<div class="thumb ${cls}">${s ? `<img src="${esc(s)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'noimg',textContent:'🛒'}))">` : `<span class="noimg">🛒</span>`}</div>`; }
+function ago(ts) {
+  if (!ts) return { t: "Not checked yet", c: "never" };
+  const m = Math.max(0, Math.round((Date.now() - new Date(ts)) / 60000));
+  const t = m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} hr ago` : `${Math.round(m / 1440)} day${m >= 2160 ? "s" : ""} ago`;
+  return { t: "Checked " + t, c: m < 1440 ? "ok" : m < 10080 ? "old" : "stale" };
+}
+// confirm() never shows inside an artifact: first tap arms the button, second tap does it
+function twoTap(btn, label) {
+  if (btn.dataset.armed === "1") { btn.dataset.armed = ""; btn.textContent = btn.dataset.orig; return true; }
+  btn.dataset.orig = btn.textContent; btn.dataset.armed = "1"; btn.textContent = label;
+  setTimeout(() => { if (btn.dataset.armed === "1") { btn.dataset.armed = ""; btn.textContent = btn.dataset.orig; } }, 4000);
+  return false;
+}
+function toast(t) { const el = $("toast"); el.textContent = t; el.classList.remove("hidden"); clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.add("hidden"), 3400); }
+function openM(id) { $(id).classList.remove("hidden"); setTimeout(() => $(id).querySelector("input:not([type=file]):not([type=color]),select")?.focus(), 40); }
+function closeM(el) { el.closest(".modal").classList.add("hidden"); }
+document.addEventListener("click", (e) => {
+  if (e.target.matches("[data-close]")) closeM(e.target);
+  if (e.target.classList.contains("modal") && e.target.id !== "mCam") e.target.classList.add("hidden");
+  if (!e.target.closest("#menu,#menuBtn")) $("menu").classList.add("hidden");
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.id === "mCam" ? stopCam() : m.classList.add("hidden")); $("menu").classList.add("hidden"); } });
+function barcodeSvg(code) {
+  // decorative bars derived from the digits — looks like the code you scanned
+  let x = 0, r = "";
+  const d = (code + "0000000000000").slice(0, 13);
+  for (let i = 0; i < 13; i++) { const n = +d[i]; for (let k = 0; k < 3; k++) { const w = 1 + ((n + k * 3) % 3); if ((n + k) % 2 === 0) r += `<rect x="${x}" width="${w}" height="26"/>`; x += w + 1; } }
+  return `<svg viewBox="0 0 ${x} 26" preserveAspectRatio="none" width="148" height="26" fill="currentColor" aria-hidden="true">${r}</svg>`;
+}
+const NAV = { homeView: "home", compareView: "compare", dailyView: "daily", listView: "list", reportView: "report", setView: "settings", bulkView: "bulk", usersView: "users" };
+const VIEWS = ["homeView", "prodView", "setView", "compareView", "listView", "reportView", "bulkView", "usersView", "dailyView", "noView"];
+function show(view) {
+  for (const v of VIEWS) $(v).classList.toggle("hidden", v !== view);
+  document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("on", b.dataset.v === NAV[view]));
+  if (view !== "prodView" && /^#\d+$/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search);
+  window.scrollTo(0, 0);
+}
+function setHH() { document.documentElement.style.setProperty("--hh", $("hdr").offsetHeight + "px"); }
+addEventListener("resize", setHH);
+document.fonts?.ready.then(setHH);
+
+// theme
+function applyTheme(t) { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; const dark = t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; $("mThemeT").textContent = dark ? "Light mode" : "Dark mode"; }
+applyTheme(store.get("pc-theme"));
+$("mTheme").onclick = () => { const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; const t = dark ? "light" : "dark"; store.set("pc-theme", t); applyTheme(t); $("menu").classList.add("hidden"); };
+$("menuBtn").onclick = () => $("menu").classList.toggle("hidden");
+
+// ================= auth =================
+$("authForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const email = $("aEmail").value.trim(), password = $("aPass").value;
+  $("aBtn").disabled = true; $("aMsg").textContent = "";
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  $("aBtn").disabled = false;
+  if (error) { $("aMsg").style.color = "var(--red)"; $("aMsg").textContent = /invalid/i.test(error.message) ? "That email and password don't match. Check them, or ask your admin to reset your password." : error.message; }
+};
+$("mSignOut").onclick = () => sb.auth.signOut();
+$("noSignOut").onclick = () => sb.auth.signOut();
+$("mPass").onclick = () => { $("menu").classList.add("hidden"); $("passForm").reset(); openM("mPassM"); };
+$("passForm").onsubmit = async (e) => {
+  e.preventDefault();
+  if ($("pNew").value !== $("pNew2").value) return toast("The two passwords don't match.");
+  const { error } = await sb.auth.updateUser({ password: $("pNew").value });
+  if (error) return toast(error.message);
+  closeM(e.target); toast("Password changed");
+};
+sb.auth.onAuthStateChange((_e, session) => {
+  const was = user?.id; user = session?.user || null;
+  if (!user || was !== user.id) {
+    clearInterval(boot.t); me = null; isAdmin = false; lastNotifId = 0; notifs = []; alerts = {}; listRows = []; listIds = new Set();
+    document.body.classList.remove("is-admin");
+  }
+  $("authView").classList.toggle("hidden", !!user);
+  $("hdr").classList.toggle("hidden", !user);
+  $("app").classList.toggle("hidden", !user);
+  if (user && was !== user.id) setTimeout(async () => { try { await boot(); } catch (err) { toast(err.message); } }, 0);
+});
+
+let me = null, isAdmin = false;
+function noAccess(title, msg) {
+  for (const v of VIEWS) $(v).classList.add("hidden");
+  $("noView").classList.remove("hidden"); $("noTitle").textContent = title; $("noMsg").textContent = msg;
+}
+async function boot() {
+  setHH();
+  const { data: m } = await sb.from("pc_members").select("*").eq("user_id", user.id).maybeSingle();
+  me = m; isAdmin = me?.role === "admin";
+  document.body.classList.toggle("is-admin", isAdmin);
+  $("mWho").textContent = me ? `${me.name || me.email || user.email} · ${isAdmin ? "Admin" : "User"}` : user.email;
+  if (!me) return noAccess("No access yet", "Your account isn't set up for the price checker. Ask your admin to add you.");
+  await loadAll(true);
+  if (!areas.length && !isAdmin) return noAccess("No locations yet", "You haven't been given any locations. Ask your admin to add one to your account.");
+  if (!areas.length) {
+    const { data: a } = await sb.from("pc_areas").insert({ name: "My area", sort: 0 }).select().single();
+    if (a) {
+      // move any stores without an area into the first area, or seed a few
+      const orphans = stores.filter((s) => !s.area_id);
+      if (orphans.length) await sb.from("pc_stores").update({ area_id: a.id }).is("area_id", null);
+      else await sb.from("pc_stores").insert(PRESETS.slice(0, 3).map((p, i) => ({ name: p.name, search_url: p.url, color: p.color, sort: i, area_id: a.id })));
+    }
+    await loadAll();
+  }
+  const saved = store.get("pc-area");
+  areaId = areas.some((a) => a.id === saved) ? saved : areas[0]?.id;
+  renderAreaSel();
+  await Promise.all([loadList(), loadAlerts()]);
+  loadNotifs(); clearInterval(boot.t); boot.t = setInterval(loadNotifs, 60000);
+  const hc = location.hash.match(/^#(\d{6,14})$/);
+  if (hc) openBarcode(hc[1]); else goHome();
+}
+addEventListener("hashchange", () => { const hc = location.hash.match(/^#(\d{6,14})$/); if (hc && hc[1] !== product?.barcode) openBarcode(hc[1]); });
+async function loadAll(strict) {
+  const [a, s] = await Promise.all([
+    sb.from("pc_areas").select("*").order("sort").order("created_at"),
+    sb.from("pc_stores").select("*").order("sort").order("created_at"),
+  ]);
+  if (a.error || s.error) { if (strict) throw new Error((a.error || s.error).message); toast((a.error || s.error).message); }
+  areas = a.data || []; stores = s.data || [];
+}
+const areaStores = (id = areaId) => stores.filter((s) => s.area_id === id);
+const onStores = () => areaStores().filter((s) => s.enabled);
+const areaName = (id = areaId) => areas.find((a) => a.id === id)?.name || "";
+
+function renderAreaSel() {
+  $("areaSel").innerHTML = areas.map((a) => `<option value="${esc(a.id)}" ${a.id === areaId ? "selected" : ""}>${esc(a.name)}</option>`).join("");
+}
+$("areaSel").onchange = () => {
+  areaId = $("areaSel").value; store.set("pc-area", areaId); toast(`Checking ${areaName()} stores`);
+  if (!$("prodView").classList.contains("hidden") && product) { activeTab = "all"; renderProduct(); autoCheck(); }
+  else if (!$("setView").classList.contains("hidden")) { setAreaId = areaId; renderSettings(); }
+  else refreshView();
+};
+function refreshView() {
+  const v = document.querySelector("#nav button.on")?.dataset.v || "home";
+  ({ home: goHome, compare: goCompare, daily: goDaily, list: goList, report: goReport, settings: () => $("goSettings").onclick(), bulk: goBulk, users: goUsers })[v]();
+}
+$("nav").onclick = (e) => {
+  const b = e.target.closest("[data-v]"); if (!b) return;
+  ({ home: goHome, compare: goCompare, daily: goDaily, list: goList, report: goReport, settings: () => $("goSettings").onclick(), bulk: goBulk, users: goUsers })[b.dataset.v]();
+};
+
+// ================= home =================
+$("goHome").onclick = goHome;
+$("goSettings").onclick = () => { if (!isAdmin) return; setAreaId = areaId; renderSettings(); show("setView"); };
+$("homeManage").onclick = $("goSettings").onclick;
+async function goHome() {
+  product = null; show("homeView"); $("code").value = "";
+  document.querySelectorAll("#homeSeg button").forEach((b) => b.classList.toggle("on", b.dataset.h === homeMode));
+  $("areaTitle").textContent = `${areaName()} stores`;
+  const list = areaStores();
+  $("homeStores").innerHTML = list.length ? list.map((s) => `<div class="sl"><span class="dot" style="background:${safeColor(s.color)}"></span><span style="flex:1;font-weight:600">${esc(s.name)}</span>${s.enabled ? "" : `<span class="pill">Off</span>`}</div>`).join("")
+    : `<p class="small muted">No stores in this area yet.</p>`;
+  await loadItems();
+}
+$("homeSeg").onclick = (e) => { const b = e.target.closest("[data-h]"); if (!b) return; homeMode = b.dataset.h; goHome(); };
+async function loadItems() {
+  const ids = onStores().map((s) => s.id);
+  const { data } = await sb.from("pc_products").select("id,barcode,name,size,image_url,my_price,watch,updated_at,pc_prices(store_id,price,match,checked_at)").order("updated_at", { ascending: false }).limit(500);
+  itemsCache = (data || []).map((p) => {
+    const ps = (p.pc_prices || []).filter((x) => ids.includes(x.store_id) && x.price != null && x.match !== "possible");
+    const min = ps.length ? Math.min(...ps.map((x) => +x.price)) : null;
+    const at = ps.find((x) => +x.price === min);
+    return { ...p, low: min, lowStore: at ? stores.find((s) => s.id === at.store_id)?.name : null };
+  });
+
+  if (homeMode === "drops" || !$("homeView").classList.contains("hidden")) await loadDrops(ids);
+  drawItems(); drawKpis();
+}
+function drawKpis() {
+  const priced = itemsCache.filter((p) => p.my_price != null && p.low != null);
+  const above = priced.filter((p) => +p.my_price > p.low + 0.004).length, cheapest = priced.filter((p) => +p.my_price <= p.low + 0.004).length;
+  const st = onStores(), auto = st.filter((s) => /\{(barcode|upc12|ean13|name)\}/.test(s.search_url)).length;
+  $("kpis").innerHTML = `
+    <button class="kpi" data-k="compare"><small>Items tracked</small><b>${itemsCache.length}</b><span>${itemsCache.filter((p) => p.low != null).length} with a competitor price</span></button>
+    <button class="kpi" data-k="settings"><small>${esc(areaName())} stores</small><b>${st.length}</b><span>${auto} automatic, ${st.length - auto} by hand</span></button>
+    <button class="kpi bad" data-k="above"><small>You're higher</small><b>${above}</b><span>items priced above the cheapest store</span></button>
+    <button class="kpi good" data-k="below"><small>You're cheapest</small><b>${cheapest}</b><span>${dropsCache.length} recent price drops at competitors</span></button>`;
+}
+$("kpis").onclick = (e) => {
+  const k = e.target.closest("[data-k]")?.dataset.k; if (!k) return;
+  if (k === "compare") goCompare(); else if (k === "settings") $("goSettings").onclick(); else { repFilter = k; goReport(); }
+};
+
+// ================= compare all =================
+let cmpFilter = "all";
+async function goCompare() { product = null; show("compareView"); $("cmpGrid").innerHTML = empty("Loading…", ""); await loadItems(); drawCompare(); }
+function drawCompare() {
+  const st = onStores(), ids = new Set(st.map((s) => s.id)), f = $("cmpFilter").value.trim().toLowerCase();
+  $("cmpSub").textContent = `Every item you've checked, at the ${st.length} stores in ${areaName()}. Cheapest price is highlighted.`;
+  const rows = itemsCache.map((p) => {
+    const by = {}; for (const x of p.pc_prices || []) if (ids.has(x.store_id) && x.price != null && x.match !== "possible") by[x.store_id] = +x.price;
+    return { p, by, n: Object.keys(by).length };
+  }).filter(({ p, n }) => (!f || (p.name || "").toLowerCase().includes(f) || p.barcode.includes(f))
+    && (cmpFilter === "all" || (cmpFilter === "2" && n >= 2) || (cmpFilter === "4" && n >= 4) || (cmpFilter === "above" && p.my_price != null && p.low != null && +p.my_price > p.low + 0.004)));
+  if (!st.length) { $("cmpGrid").innerHTML = empty("No stores in this area", "Add stores under Areas & stores."); return; }
+  if (!rows.length) { $("cmpGrid").innerHTML = empty("Nothing to compare yet", f || cmpFilter !== "all" ? "No items match this filter." : "Scan a few barcodes and they'll line up here."); return; }
+  $("cmpGrid").innerHTML = `<table class="grid"><thead><tr><th>Item</th><th>You</th>${st.map((s) => `<th><span class="dotsm" style="background:${safeColor(s.color)}"></span>${esc(s.name)}</th>`).join("")}</tr></thead><tbody>${rows.map(({ p, by }) => {
+    const vals = Object.values(by), min = vals.length ? Math.min(...vals) : null;
+    return `<tr data-bc="${esc(p.barcode)}"><td><div class="it">${thumb(p.image_url)}<div style="min-width:0"><b>${esc(p.name || "Unnamed item")}</b><span class="code">${esc(p.size || p.barcode)}</span></div></div></td>
+      <td class="you">${p.my_price != null ? money(p.my_price) : "—"}</td>
+      ${st.map((s) => by[s.id] == null ? `<td class="na">—</td>` : `<td class="${vals.length > 1 && by[s.id] === min ? "low" : ""}">${money(by[s.id])}</td>`).join("")}</tr>`;
+  }).join("")}</tbody></table>`;
+}
+$("cmpSeg").onclick = (e) => { const b = e.target.closest("[data-f]"); if (!b) return; cmpFilter = b.dataset.f; document.querySelectorAll("#cmpSeg button").forEach((x) => x.classList.toggle("on", x === b)); drawCompare(); };
+$("cmpFilter").oninput = drawCompare;
+$("cmpGrid").onclick = (e) => { const r = e.target.closest("[data-bc]"); if (r) openBarcode(r.dataset.bc); };
+
+// ================= my list =================
+let listRows = [], listIds = new Set();
+async function loadList() {
+  const { data } = await sb.from("pc_list").select("*").order("created_at");
+  listRows = data || []; listIds = new Set(listRows.map((r) => r.product_id));
+  $("listN").textContent = listRows.length; $("listN").classList.toggle("hidden", !listRows.length);
+}
+async function toggleList() {
+  const on = listIds.has(product.id);
+  const { error } = on ? await sb.from("pc_list").delete().eq("product_id", product.id) : await sb.from("pc_list").insert({ product_id: product.id, qty: 1 });
+  if (error) return toast(error.message);
+  await loadList(); renderProduct(); toast(on ? "Removed from your list" : "Added to your list");
+}
+async function goList() { product = null; show("listView"); await Promise.all([loadList(), loadItems()]); drawList(); }
+function listData() {
+  const st = onStores(), ids = new Set(st.map((s) => s.id));
+  const items = listRows.map((r) => {
+    const p = itemsCache.find((x) => x.id === r.product_id); if (!p) return null;
+    const by = {}; for (const x of p.pc_prices || []) if (ids.has(x.store_id) && x.price != null && x.match !== "possible") by[x.store_id] = +x.price;
+    return { r, p, by };
+  }).filter(Boolean);
+  const totals = st.map((s) => { let t = 0, have = 0; for (const it of items) if (it.by[s.id] != null) { t += it.by[s.id] * it.r.qty; have++; } return { s, t, have }; })
+    .filter((x) => x.have).sort((a, b) => (b.have - a.have) || (a.t - b.t));
+  let split = 0, splitN = 0; for (const it of items) { const v = Object.values(it.by); if (v.length) { split += Math.min(...v) * it.r.qty; splitN++; } }
+  return { items, totals, split, splitN };
+}
+function drawList() {
+  const { items, totals, split, splitN } = listData();
+  $("listItems").innerHTML = items.length ? items.map(({ r, p, by }) => {
+    const v = Object.entries(by), min = v.length ? Math.min(...v.map((x) => x[1])) : null, at = v.find((x) => x[1] === min);
+    return `<div class="item" style="grid-template-columns:56px minmax(0,1fr) auto auto" data-bc="${esc(p.barcode)}">${thumb(p.image_url)}
+      <div style="min-width:0"><div class="nm">${esc(p.name || "Unnamed item")}</div><div class="code">${min != null ? `Cheapest ${money(min)} at ${esc(stores.find((s) => s.id === at[0])?.name || "")}` : "No competitor price yet"}</div></div>
+      <div class="qty" data-noopen><button data-q="${esc(r.id)}" data-d="-1" aria-label="Less">−</button><span>${r.qty}</span><button data-q="${esc(r.id)}" data-d="1" aria-label="More">+</button></div>
+      <button class="btn sm q" data-rm="${esc(r.id)}" data-noopen aria-label="Remove">✕</button></div>`;
+  }).join("") : empty("Your list is empty", "Open any item and tap + My list.");
+  const full = totals.filter((x) => x.have === items.length);
+  $("listTotals").innerHTML = items.length ? `
+    ${splitN ? `<div class="bigsave"><span>Cheapest if you split across stores</span><b>${money(split)}</b><span>${splitN} of ${items.length} items have a price</span></div>` : ""}
+    <div class="card" style="padding:16px"><h2 style="font-size:18px">One-store totals</h2>
+    ${totals.length ? totals.map((x, i) => `<div class="storetot ${full.length && x === full[0] ? "best" : ""}"><span class="dot" style="background:${safeColor(x.s.color)}"></span><div style="min-width:0"><div style="font-weight:650">${esc(x.s.name)}</div><div class="small muted">${x.have === items.length ? "Has every item" : `Has ${x.have} of ${items.length} items`}</div></div><b>${money(x.t)}</b></div>`).join("") : `<p class="small muted">No store has a price for these items yet.</p>`}
+    </div>` : "";
+}
+$("listItems").onclick = async (e) => {
+  const q = e.target.closest("[data-q]"), rm = e.target.closest("[data-rm]");
+  if (q) { const r = listRows.find((x) => x.id === q.dataset.q); const n = Math.max(1, Math.min(999, r.qty + +q.dataset.d)); if (n !== r.qty) { r.qty = n; drawList(); await sb.from("pc_list").update({ qty: n }).eq("id", r.id); } return; }
+  if (rm) { await sb.from("pc_list").delete().eq("id", rm.dataset.rm); await loadList(); drawList(); return; }
+  if (e.target.closest("[data-noopen]")) return;
+  const row = e.target.closest("[data-bc]"); if (row) openBarcode(row.dataset.bc);
+};
+$("listCopy").onclick = async () => {
+  const { items, totals, split } = listData();
+  if (!items.length) return toast("Your list is empty.");
+  const lines = [`Shopping list (${areaName()})`, ...items.map(({ r, p, by }) => { const v = Object.entries(by), min = v.length ? Math.min(...v.map((x) => x[1])) : null, at = v.find((x) => x[1] === min); return `• ${r.qty > 1 ? r.qty + "× " : ""}${p.name || p.barcode}${min != null ? ` — ${money(min)} at ${stores.find((s) => s.id === at[0])?.name}` : ""}`; }),
+    "", `Split across stores: ${money(split)}`, ...totals.slice(0, 3).map((x) => `${x.s.name}: ${money(x.t)} (${x.have}/${items.length} items)`)];
+  try { await navigator.clipboard.writeText(lines.join("\n")); toast("Copied. Paste it into WhatsApp."); } catch { toast("Couldn't copy here."); }
+};
+$("listClear").onclick = async () => {
+  if (!listRows.length) return;
+  if (!twoTap($("listClear"), "Tap again to clear")) return;
+  await Promise.all(listRows.map((r) => sb.from("pc_list").delete().eq("id", r.id)));
+  await loadList(); drawList(); toast("List cleared");
+};
+
+// ================= price report =================
+let repFilter = "all";
+async function goReport() {
+  product = null; show("reportView");
+  document.querySelectorAll("#repSeg button").forEach((x) => x.classList.toggle("on", x.dataset.f === repFilter));
+  await loadItems(); drawReport();
+}
+function drawReport() {
+  const all = itemsCache.filter((p) => p.low != null);
+  const priced = all.filter((p) => p.my_price != null);
+  const gap = (p) => +p.my_price - p.low;
+  const above = priced.filter((p) => gap(p) > 0.004), below = priced.filter((p) => gap(p) <= 0.004);
+  const avgAbove = above.length ? above.reduce((a, p) => a + gap(p) / p.low, 0) / above.length * 100 : 0;
+  $("repKpis").innerHTML = `
+    <div class="kpi"><small>Items with your price</small><b>${priced.length}</b><span>of ${all.length} with a competitor price</span></div>
+    <div class="kpi bad"><small>You're higher</small><b>${above.length}</b><span>${above.length ? `by ${avgAbove.toFixed(0)}% on average` : "on none of them"}</span></div>
+    <div class="kpi good"><small>You're cheapest or matched</small><b>${below.length}</b><span>&nbsp;</span></div>
+    <div class="kpi"><small>No price set</small><b>${all.length - priced.length}</b><span>set it on the item page</span></div>`;
+  let rows = repFilter === "above" ? above : repFilter === "below" ? below : repFilter === "none" ? all.filter((p) => p.my_price == null) : all;
+  rows = [...rows].sort((a, b) => (b.my_price != null ? gap(b) : -1e9) - (a.my_price != null ? gap(a) : -1e9));
+  $("repGrid").innerHTML = rows.length ? `<table class="grid"><thead><tr><th>Item</th><th>Your price</th><th>Cheapest</th><th>Store</th><th>Difference</th><th>Status</th></tr></thead><tbody>${rows.map((p) => {
+    const g = p.my_price != null ? gap(p) : null;
+    const s = g == null ? "" : g > 0.004 ? `<span class="status above">Higher</span>` : g < -0.004 ? `<span class="status below">Cheapest</span>` : `<span class="status match">Matched</span>`;
+    return `<tr data-bc="${esc(p.barcode)}"><td><div class="it">${thumb(p.image_url)}<div style="min-width:0"><b>${esc(p.name || "Unnamed item")}</b><span class="code">${esc(p.size || p.barcode)}</span></div></div></td>
+      <td>${money(p.my_price)}</td><td><b>${money(p.low)}</b></td><td style="text-align:left">${esc(p.lowStore || "")}</td>
+      <td class="${g > 0.004 ? "hi" : g < -0.004 ? "lo" : ""}">${g == null ? "—" : (g > 0 ? "+" : "") + money(g).replace("$-", "-$")}${g != null && p.low ? ` <span class="small muted">(${(g / p.low * 100).toFixed(0)}%)</span>` : ""}</td><td>${s}</td></tr>`;
+  }).join("")}</tbody></table>` : empty("Nothing here", repFilter === "none" ? "Every item has your price set." : "Set your selling price on item pages to see this report.");
+}
+$("repSeg").onclick = (e) => { const b = e.target.closest("[data-f]"); if (!b) return; repFilter = b.dataset.f; document.querySelectorAll("#repSeg button").forEach((x) => x.classList.toggle("on", x === b)); drawReport(); };
+$("repGrid").onclick = (e) => { const r = e.target.closest("[data-bc]"); if (r) openBarcode(r.dataset.bc); };
+
+// ================= who's cheaper (daily full-list comparison) =================
+let dailyF = "higher", dailyQ = "", dailyRows = [], dailyMore = false, dailySync = [], dailyTimer = null;
+const DAILY_PAGE = 100;
+const agoD = (t) => { if (!t) return "never"; const m = Math.max(0, (Date.now() - new Date(t)) / 60000); return m < 2 ? "just now" : m < 60 ? `${Math.round(m)} min ago` : m < 1440 ? `${Math.round(m / 60)} hr ago` : `${Math.round(m / 1440)} days ago`; };
+const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
+async function goDaily() {
+  product = null; show("dailyView");
+  $("dailyQ").value = dailyQ;
+  document.querySelectorAll("#dailySeg button").forEach((x) => x.classList.toggle("on", x.dataset.f === dailyF));
+  $("dailyGrid").innerHTML = `<div class="dnote">Loading…</div>`;
+  try { await Promise.all([loadDailySync(), loadDailyKpis(), loadDaily(false)]); } catch (e) { $("dailyGrid").innerHTML = `<div class="dnote">${esc(e.message)}</div>`; }
+}
+async function loadDailySync() {
+  const [st, sy] = await Promise.all([
+    sb.from("pc_stores").select("id,name,is_mine,sync,color,search_url,sort").eq("area_id", areaId).eq("enabled", true).order("sort").order("name"),
+    sb.from("pc_sync").select("store_id,status,items,done_pages,pages,last_done,message,requested"),
+  ]);
+  if (st.error) throw new Error(st.error.message);
+  const by = Object.fromEntries((sy.data || []).map((y) => [y.store_id, y]));
+  dailySync = (st.data || []).map((s) => ({ ...s, fc: /\{rid\}/.test(s.search_url || ""), ...(by[s.id] || {}), id: s.id })).sort((x, y) => (y.is_mine ? 1 : 0) - (x.is_mine ? 1 : 0));
+  drawDailySync();
+  clearTimeout(dailyTimer);
+  if (dailySync.some((s) => s.status === "running" || s.requested) && !$("dailyView").classList.contains("hidden"))
+    dailyTimer = setTimeout(async () => { if ($("dailyView").classList.contains("hidden")) return; const was = dailySync.filter((s) => s.status === "running").length; try { await loadDailySync(); if (dailySync.filter((s) => s.status === "running").length < was) { loadDailyKpis(); loadDaily(false); } } catch {} }, 20000);
+}
+function drawDailySync() {
+  const mine = dailySync.find((s) => s.is_mine);
+  $("dailySub").textContent = mine ? `${mine.name}'s full price list against the other ${areaName()} stores. It updates by itself on the schedule you set for each store.` : `Choose which ${areaName()} store is yours to start.`;
+  $("dailyStores").innerHTML = dailySync.length ? dailySync.map((s) => {
+    const run = s.status === "running" || s.requested;
+    const st = run ? `Updating now${s.pages ? ` · ${Math.min(99, Math.round((s.done_pages || 0) / s.pages * 100))}%` : "…"}` : s.status === "error" ? esc(s.message || "Couldn't update") : s.last_done ? `${Number(s.items || 0).toLocaleString()} items · updated ${agoD(s.last_done)}` : s.sync === "off" && !s.is_mine ? "Not included" : "Waiting for first update";
+    return `<div class="dstore ${s.status === "error" && !run ? "err" : ""}">
+      <i class="dotsm" style="background:${esc(s.color || "#888")}"></i>
+      <div class="dn"><b>${esc(s.name)}</b>${s.is_mine ? ` <span class="pill auto" style="font-size:12px">My store</span>` : ""}<span>${st}</span></div>
+      ${isAdmin ? `<select data-sync="${esc(s.id)}" aria-label="How often to update ${esc(s.name)}"><option value="off" ${s.sync === "off" ? "selected" : ""}>Off</option><option value="daily" ${s.sync === "daily" ? "selected" : ""}>Every day</option><option value="weekly" ${s.sync === "weekly" ? "selected" : ""}>Every week</option></select>
+      <button class="btn sm" data-now="${esc(s.id)}" ${run ? "disabled" : ""}>Update now</button>
+      ${s.is_mine ? "" : `<button class="btn sm" data-mine="${esc(s.id)}" title="Compare everything against this store instead">Make mine</button>`}` : ""}
+    </div>`;
+  }).join("") : `<div class="dnote">This area has no stores yet. Add them under Areas &amp; stores.</div>`;
+}
+async function loadDailyKpis() {
+  const { data, error } = await sb.rpc("pc_compare_stats", { p_area: areaId });
+  if (error) throw new Error(error.message);
+  const r = data || [];
+  const k = Object.fromEntries(r.map((x) => [x.verdict, x])); const n = (v) => k[v]?.n || 0;
+  const compared = n("higher") + n("cheaper") + n("same");
+  $("dailyKpis").innerHTML = `
+    <button class="kpi" data-f="all"><small>Items compared</small><b>${compared.toLocaleString()}</b><span>of ${(compared + n("alone")).toLocaleString()} on your site</span></button>
+    <button class="kpi bad" data-f="higher"><small>Someone is cheaper</small><b>${n("higher").toLocaleString()}</b><span>${n("higher") ? `you're ${k.higher.pct}% higher on average` : "on none of them"}</span></button>
+    <button class="kpi good" data-f="cheaper"><small>You're the cheapest</small><b>${n("cheaper").toLocaleString()}</b><span>${n("cheaper") ? `by ${Math.abs(k.cheaper.pct)}% on average` : "&nbsp;"}</span></button>
+    <button class="kpi" data-f="same"><small>Same price</small><b>${n("same").toLocaleString()}</b><span>matches the lowest store</span></button>`;
+}
+function dailyQuery(cols) {
+  let q = sb.from("pc_compare").select(cols).eq("area_id", areaId);
+  q = dailyF !== "all" ? q.eq("verdict", dailyF) : q.neq("verdict", "alone");
+  const t = dailyQ.trim().slice(0, 60).replace(/[%_\\,()]/g, "");
+  if (t) q = /^\d{4,}$/.test(t) ? q.like("barcode", `%${t}%`) : q.ilike("name", `%${t}%`);
+  q = dailyF === "cheaper" ? q.order("diff", { ascending: true }) : dailyF === "alone" ? q.order("name") : q.order("diff", { ascending: false, nullsFirst: false });
+  return q.order("my_key");
+}
+async function loadDaily(more) {
+  const off = more ? dailyRows.length : 0;
+  const { data, error } = await dailyQuery("my_key,barcode,name,size,image_url,my_price,low_price,low_store,diff,verdict,stores").range(off, off + DAILY_PAGE);
+  if (error) throw new Error(error.message);
+  const r = data || [];
+  dailyMore = r.length > DAILY_PAGE;
+  dailyRows = (more ? dailyRows : []).concat(r.slice(0, DAILY_PAGE));
+  drawDaily();
+}
+function drawDaily() {
+  const cols = dailySync.filter((s) => !s.is_mine && (s.last_done || s.sync !== "off"));
+  const nameOf = Object.fromEntries(dailySync.map((s) => [s.id, s.name]));
+  if (!dailyRows.length) {
+    const none = !dailySync.some((s) => s.is_mine) ? "Your admin needs to choose which store is yours." : dailySync.some((s) => s.status === "running" || s.requested) ? "The price lists are being collected. This page fills in by itself in a few minutes." : dailyQ ? "No items match that search." : "Nothing in this group.";
+    $("dailyGrid").innerHTML = `<div class="dnote">${none}</div>`; $("dailyMoreBox").innerHTML = ""; return;
+  }
+  $("dailyGrid").innerHTML = `<table class="grid"><thead><tr><th>Item</th><th>Your price</th><th>Cheapest</th><th>Difference</th>${cols.map((s) => `<th>${esc(s.name)}</th>`).join("")}</tr></thead><tbody>${dailyRows.map((p) => {
+    const by = Object.fromEntries((Array.isArray(p.stores) ? p.stores : []).map((x) => [x.s, x]));
+    const g = p.diff == null ? null : +p.diff;
+    return `<tr ${/^\d{6,14}$/.test(p.barcode || "") ? `data-bc="${esc(p.barcode)}"` : `style="cursor:default"`}><td><div class="it">${thumb(p.image_url)}<div style="min-width:0"><b>${esc(p.name)}</b><span class="code">${esc(p.barcode || p.size || "")}</span></div></div></td>
+      <td class="you">${money(p.my_price)}</td>
+      <td>${p.low_price == null ? "—" : `<b>${money(p.low_price)}</b><div class="small muted">${esc(nameOf[p.low_store] || "")}</div>`}</td>
+      <td class="${g > 0.004 ? "hi" : g < -0.004 ? "lo" : ""}">${g == null ? "—" : (g > 0 ? "+" : "") + money(g).replace("$-", "-$")}${g != null && +p.low_price ? `<div class="small muted">${(g / p.low_price * 100).toFixed(0)}%</div>` : ""}</td>
+      ${cols.map((s) => { const x = by[s.id]; return x ? `<td class="${+x.p === +p.low_price && +x.p < +p.my_price ? "low" : ""}" title="${esc(x.n || "")}${x.k === "name" ? " (matched by name)" : ""}">${money(x.p)}${x.k === "name" ? `<span class="approx">≈</span>` : ""}</td>` : `<td class="na">—</td>`; }).join("")}</tr>`;
+  }).join("")}</tbody></table>`;
+  $("dailyMoreBox").innerHTML = dailyMore ? `<button class="btn" id="dailyMoreBtn">Show ${DAILY_PAGE} more</button>` : "";
+}
+$("dailySeg").onclick = (e) => { const b = e.target.closest("[data-f]"); if (!b) return; dailyF = b.dataset.f; document.querySelectorAll("#dailySeg button").forEach((x) => x.classList.toggle("on", x === b)); loadDaily(false).catch((er) => toast(er.message)); };
+$("dailyKpis").onclick = (e) => { const b = e.target.closest("[data-f]"); if (!b) return; dailyF = b.dataset.f; document.querySelectorAll("#dailySeg button").forEach((x) => x.classList.toggle("on", x.dataset.f === dailyF)); loadDaily(false).catch((er) => toast(er.message)); };
+$("dailyQ").oninput = () => { clearTimeout($("dailyQ").h); $("dailyQ").h = setTimeout(() => { dailyQ = $("dailyQ").value; loadDaily(false).catch((er) => toast(er.message)); }, 350); };
+$("dailyGrid").onclick = (e) => { const r = e.target.closest("[data-bc]"); if (r) openBarcode(r.dataset.bc); };
+$("dailyMoreBox").onclick = (e) => { if (e.target.closest("#dailyMoreBtn")) loadDaily(true).catch((er) => toast(er.message)); };
+$("dailyStores").onchange = async (e) => {
+  const s = e.target.closest("[data-sync]"); if (!s || !isAdmin || !["off", "daily", "weekly"].includes(s.value)) return;
+  const { error } = await sb.from("pc_stores").update({ sync: s.value }).eq("id", s.dataset.sync);
+  if (error) return toast(error.message);
+  toast(s.value === "off" ? "This store won't update by itself" : `Updates every ${s.value === "daily" ? "day" : "week"}`); loadDailySync().catch(() => {});
+};
+$("dailyStores").onclick = async (e) => {
+  const n = e.target.closest("[data-now]"), m = e.target.closest("[data-mine]");
+  if (!isAdmin) return;
+  try {
+    if (n) {
+      n.disabled = true;
+      const { error } = await sb.rpc("pc_sync_request", { p_store: n.dataset.now }); if (error) throw new Error(error.message);
+      toast("Updating. This takes a few minutes."); await loadDailySync();
+    } else if (m) {
+      const s = dailySync.find((x) => x.id === m.dataset.mine);
+      if (!confirm(`Compare everything against ${s?.name || "this store"} instead?`)) return;
+      const { error } = await sb.rpc("pc_set_mine", { p_store: m.dataset.mine }); if (error) throw new Error(error.message);
+      toast("Collecting the price lists. This takes a few minutes."); await goDaily();
+    }
+  } catch (er) { toast(er.message); }
+};
+$("dailyCopy").onclick = async () => {
+  try {
+    const rows = [];
+    for (let off = 0; off < 20000; off += 1000) {
+      const { data, error } = await dailyQuery("barcode,name,size,my_price,low_price,low_store,diff,stores").range(off, off + 999);
+      if (error) throw new Error(error.message);
+      rows.push(...(data || [])); if (!data || data.length < 1000) break;
+    }
+    if (!rows.length) return toast("Nothing to download");
+    const cols = dailySync.filter((s) => !s.is_mine && (s.last_done || s.sync !== "off"));
+    const nameOf = Object.fromEntries(dailySync.map((s) => [s.id, s.name]));
+    const cell = (v) => { const t = String(v ?? ""); return /^[=+\-@\t\r]/.test(t) ? "'" + t : t; };
+    const num = (v) => (v == null ? "" : +v);
+    const aoa = [["Barcode", "Item", "Your price", "Cheapest", "Cheapest store", "Difference", ...cols.map((s) => s.name)]].concat(rows.map((p) => {
+      const by = Object.fromEntries((Array.isArray(p.stores) ? p.stores : []).map((x) => [x.s, x.p]));
+      return [cell(p.barcode), cell(p.name), num(p.my_price), num(p.low_price), cell(nameOf[p.low_store]), num(p.diff), ...cols.map((s) => num(by[s.id]))];
+    }));
+    const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = [{ wch: 15 }, { wch: 44 }, { wch: 11 }, { wch: 11 }, { wch: 18 }, { wch: 11 }, ...cols.map(() => ({ wch: 14 }))];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Who is cheaper");
+    XLSX.writeFile(wb, `who-is-cheaper-${areaName().replace(/[^\w]+/g, "-")}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  } catch (er) { toast(er?.message || "Couldn't download"); }
+};
+
+async function loadDrops(ids) {
+  dropsCache = [];
+  if (!ids.length) return;
+  const since = new Date(Date.now() - 30 * 864e5).toISOString();
+  const { data } = await sb.from("pc_price_history").select("product_id,store_id,price,recorded_at").in("store_id", ids).gte("recorded_at", since).order("recorded_at", { ascending: false }).limit(5000);
+  const by = {};
+  for (const h of (data || []).reverse()) (by[h.product_id + "|" + h.store_id] ||= []).push(+h.price);
+  const best = {};
+  for (const [k, arr] of Object.entries(by)) {
+    if (arr.length < 2) continue;
+    const now = arr[arr.length - 1]; let prev = null;
+    for (let i = arr.length - 2; i >= 0; i--) if (arr[i] !== now) { prev = arr[i]; break; }
+    if (prev != null && now < prev) {
+      const [pid, sid] = k.split("|");
+      const d = { pid, sid, now, prev, pct: Math.round((prev - now) / prev * 100) };
+      if (!best[pid] || d.pct > best[pid].pct) best[pid] = d;
+    }
+  }
+  dropsCache = Object.values(best).sort((a, b) => b.pct - a.pct);
+}
+function drawItems() {
+  const f = $("filter").value.trim().toLowerCase();
+  const match = (p) => !f || (p.name || "").toLowerCase().includes(f) || p.barcode.includes(f);
+  let html = "";
+  if (homeMode === "drops") {
+    const rows = dropsCache.map((d) => ({ d, p: itemsCache.find((x) => x.id === d.pid) })).filter((r) => r.p && match(r.p));
+    html = rows.map(({ d, p }) => itemRow(p, `<div class="lowtag"><b>${money(d.now)}</b><div class="drop">↓ ${d.pct}% at ${esc(stores.find((s) => s.id === d.sid)?.name || "")}</div><div class="small muted">was ${money(d.prev)}</div></div>`)).join("")
+      || empty("No price drops yet", "When a store lowers a price on an item you've checked, it shows up here.");
+  } else {
+    const rows = itemsCache.filter((p) => (homeMode !== "watch" || p.watch) && match(p));
+    html = rows.slice(0, 80).map((p) => itemRow(p, `<div class="lowtag"><span class="small muted">${p.lowStore ? "Lowest · " + esc(p.lowStore) : "Lowest"}</span><br><b>${money(p.low)}</b>${p.my_price != null ? `<div class="small" style="font-weight:700">You ${money(p.my_price)}</div>` : ""}</div>`)).join("")
+      || (f ? empty("No items match", "Try part of the name or barcode.")
+        : homeMode === "watch" ? empty("Nothing on your watchlist", "Open an item and tap ♡ Watch to keep it here.")
+        : empty("Scan your first barcode", "Use the box above, the camera, or a handheld scanner."));
+  }
+  $("items").innerHTML = html;
+}
+const empty = (t, s) => `<div class="empty"><b>${t}</b>${s}</div>`;
+const itemRow = (p, right) => `<div class="item" data-bc="${esc(p.barcode)}" tabindex="0">${thumb(p.image_url)}<div style="min-width:0"><div class="nm">${p.watch ? "♥ " : ""}${esc(p.name || "Unnamed item")}</div><div class="code">${esc(p.barcode)}${p.size ? " · " + esc(p.size) : ""}</div></div>${right}</div>`;
+$("filter").oninput = drawItems;
+$("items").onclick = (e) => { const r = e.target.closest("[data-bc]"); if (r) openBarcode(r.dataset.bc); };
+$("items").onkeydown = (e) => { if (e.key === "Enter") { const r = e.target.closest("[data-bc]"); if (r) openBarcode(r.dataset.bc); } };
+
+// ================= product =================
+$("scanForm").onsubmit = (e) => { e.preventDefault(); const c = $("code").value.replace(/\D/g, ""); if (c) openBarcode(c); else $("code").focus(); };
+async function openBarcode(raw) {
+  const code = normCode(raw);
+  if (!code) return toast("A barcode is 6 to 14 digits. Check the number and try again.");
+  const seq = ++openSeq;
+  $("code").value = code; $("code").blur();
+  let { data: p } = await sb.from("pc_products").select("*").eq("barcode", code).maybeSingle();
+  if (seq !== openSeq) return;
+  if (!p) {
+    show("prodView"); $("summary").classList.add("hidden"); $("tabs").innerHTML = $("tabBody").innerHTML = "";
+    $("prodHead").innerHTML = `<div style="grid-column:1/-1;display:flex;gap:12px;align-items:center;padding:20px 0"><span class="spin"></span> Looking up ${esc(code)}</div>`;
+    let info = { found: false };
+    try { info = await call({ action: "lookup", barcode: code }); } catch (e) { toast(e.message); }
+    if (seq !== openSeq) return;
+    const ins = await sb.from("pc_products").upsert({ barcode: code, name: info.name || null, brand: info.brand || null, size: info.size || null, image_url: safeUrl(info.image) || null }, { onConflict: "owner,barcode", ignoreDuplicates: true });
+    if (ins.error) { toast(ins.error.message); return goHome(); }
+    ({ data: p } = await sb.from("pc_products").select("*").eq("barcode", code).single());
+    if (seq !== openSeq || !p) return;
+    if (!info.found) toast("This barcode isn't in the product database. Tap Edit item to add its name.");
+  } else {
+    sb.from("pc_products").update({ updated_at: new Date().toISOString() }).eq("id", p.id).then(() => {});
+  }
+  product = p; activeTab = "all";
+  const [pr, hi] = await Promise.all([
+    sb.from("pc_prices").select("*").eq("product_id", p.id),
+    sb.from("pc_price_history").select("store_id,price,recorded_at").eq("product_id", p.id).order("recorded_at").limit(1000),
+  ]);
+  if (seq !== openSeq) return;
+  prices = Object.fromEntries((pr.data || []).map((x) => [x.store_id, x]));
+  history = hi.data || [];
+  show("prodView"); try { history.replaceState(null, "", "#" + p.barcode); } catch {}
+  renderProduct(); autoCheck();
+}
+function autoCheck() {
+  const todo = onStores().filter((s) => !prices[s.id] || !prices[s.id].last_attempt_at);
+  if (todo.length) checkStores(todo);
+}
+async function checkStores(list, force = false, second = false) {
+  const pid = product.id;
+  list = list.filter((s) => s && !busy.has(bk(s.id, pid)));
+  if (!list.length) return;
+  list.forEach((s) => busy.add(bk(s.id, pid))); renderProduct();
+  const queue = [...list];
+  const worker = async () => {
+    for (let s; (s = queue.shift());) {
+      try {
+        const r = await storeCheck({ action: "check", product_id: pid, store_id: s.id, force, second }, s);
+        if (product?.id === pid) {
+          const last = history.filter((x) => x.store_id === s.id).at(-1);
+          if (r.price != null && (!last || +last.price !== +r.price)) history.push({ store_id: s.id, price: r.price, recorded_at: r.checked_at || new Date().toISOString() });
+          prices[s.id] = { ...r, _fresh: true };
+        }
+      } catch (e) {
+        if (product?.id === pid) prices[s.id] = { ...(prices[s.id] || {}), store_id: s.id, status: "error", message: e.message, last_attempt_at: new Date().toISOString() };
+      }
+      busy.delete(bk(s.id, pid)); if (product?.id === pid) renderProduct();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(4, list.length) }, worker));
+  // Round 2: a store matched the barcode → search the stores that missed using that store's item name
+  if (second || product?.id !== pid) return;
+  const vals = onStores().map((s) => prices[s.id]);
+  if (!vals.some((p) => p?.match === "exact")) return;
+  const redo = list.filter((s) => {
+    const p = prices[s.id];
+    return /\{(barcode|upc12|ean13|name)\}/.test(s.search_url || "") && p && p.match !== "exact" && p.match !== "pinned" &&
+      p.source !== "manual" && (p.status === "not_found" || p.status === "found");
+  });
+  if (redo.length) await checkStores(redo, false, true);
+}
+
+function rowsFor() { return onStores().map((s) => ({ s, p: prices[s.id] })); }
+function lowest() {
+  const f = rowsFor().filter((r) => r.p?.price != null && r.p.match !== "possible");
+  if (!f.length) return null;
+  const v = f.map((r) => +r.p.price), min = Math.min(...v), max = Math.max(...v);
+  return { min, max, avg: v.reduce((a, b) => a + b, 0) / v.length, n: f.length, ids: f.filter((r) => +r.p.price === min).map((r) => r.s.id) };
+}
+function vsMine(mine, other) {
+  if (mine == null || other == null) return "";
+  const d = +(mine - other).toFixed(2);
+  if (d === 0) return `<div class="cmp">Same as your price</div>`;
+  return d > 0 ? `<div class="cmp lo">$${d.toFixed(2)} cheaper than you</div>` : `<div class="cmp hi">$${(-d).toFixed(2)} more than you</div>`;
+}
+function spark(storeId, w = 72, h = 22) {
+  const pts = history.filter((x) => x.store_id === storeId).slice(-12).map((x) => +x.price);
+  if (pts.length < 2) return "";
+  const mn = Math.min(...pts), mx = Math.max(...pts), rg = mx - mn || 1;
+  const d = pts.map((v, i) => `${(i / (pts.length - 1) * (w - 4) + 2).toFixed(1)},${(h - 3 - (v - mn) / rg * (h - 6)).toFixed(1)}`).join(" ");
+  const down = pts[pts.length - 1] < pts[0];
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" aria-label="Price trend"><polyline points="${d}" fill="none" stroke="${down ? "var(--leaf)" : "currentColor"}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" opacity=".8"/></svg>`;
+}
+
+function renderProduct() {
+  if (!product) return;
+  const L = lowest(), mine = product.my_price != null ? +product.my_price : null;
+  let verdict = "";
+  if (mine != null && L) {
+    const d = +(mine - L.min).toFixed(2);
+    verdict = d === 0 ? "You match the lowest price." : d < 0 ? `You're the cheapest, by $${(-d).toFixed(2)}.` : `$${d.toFixed(2)} above the cheapest store.`;
+  } else if (L) verdict = "Set your price to compare.";
+  const typing = document.activeElement?.id === "myPrice";
+  if (typing) { const v = $("prodHead").querySelector(".verdict"); if (v) v.textContent = verdict; }
+  else $("prodHead").innerHTML = `
+    ${thumb(product.image_url, "lg")}
+    <div style="min-width:0">
+      <div class="barcode">${barcodeSvg(product.barcode)}<span>${esc(product.barcode)}</span></div>
+      <p class="pname">${esc(product.name || "Unnamed item")}</p>
+      <div class="meta">
+        ${product.brand ? `<span class="pill">${esc(product.brand)}</span>` : ""}${product.size ? `<span class="pill">${esc(product.size)}</span>` : ""}
+        <button class="star ${product.watch ? "on" : ""}" id="watchBtn" aria-pressed="${product.watch}">${product.watch ? "♥ Watching" : "♡ Watch"}</button>
+        <button class="star ${listIds.has(product.id) ? "on" : ""}" id="listBtn">${listIds.has(product.id) ? "✓ On my list" : "+ My list"}</button>
+        <button class="star ${alerts[product.id]?.active ? "on" : ""}" id="alertBtn">${alerts[product.id]?.active ? "🔔 Alert on" : "🔔 Alert me"}</button>
+        <button class="btn sm q" id="editProd">Edit item</button>
+      </div>
+    </div>
+    <div class="mine">
+      <label for="myPrice">Your selling price</label>
+      <div class="in"><span>$</span><input id="myPrice" type="number" step="0.01" min="0" inputmode="decimal" value="${mine != null ? mine.toFixed(2) : ""}" placeholder="0.00"></div>
+      <div class="verdict">${verdict}</div>
+      ${L ? `<button class="btn sm" id="matchLow">Match lowest, ${money(L.min)}</button>` : ""}
+    </div>`;
+
+  $("summary").classList.toggle("hidden", !L);
+  if (L) $("summary").innerHTML = `
+    <div><small>Lowest in ${esc(areaName())}</small><b style="color:var(--leaf)">${money(L.min)}</b><span class="who">${esc(L.ids.map((id) => stores.find((s) => s.id === id)?.name).join(", "))}</span></div>
+    <div><small>Average</small><b>${money(L.avg)}</b><span class="who">${L.n} of ${onStores().length} stores have a price</span></div>
+    <div><small>Highest</small><b>${money(L.max)}</b><span class="who">${money(L.max - L.min)} between high and low</span></div>`;
+
+  const R = rowsFor();
+  $("tabs").innerHTML = `<button class="tab ${activeTab === "all" ? "on" : ""}" data-tab="all" role="tab">All stores</button>` +
+    R.map(({ s, p }) => `<button role="tab" class="tab ${activeTab === s.id ? "on" : ""} ${L?.ids.includes(s.id) ? "low" : ""}" data-tab="${esc(s.id)}">
+      <span class="dot" style="background:${safeColor(s.color)}"></span>${esc(s.name)}
+      <span class="tp">${isBusy(s.id) ? `<span class="spin" style="width:12px;height:12px"></span>` : p?.price != null ? money(p.price) : "—"}</span></button>`).join("") +
+    `<span style="flex:1"></span><button class="btn sm" id="refAll" ${busyHere() ? "disabled" : ""}>${busyHere() ? `<span class="spin" style="width:12px;height:12px"></span> Checking ${busyHere()}` : "↻ Refresh all"}</button><button class="btn sm" id="shareBtn">Share</button>`;
+
+  if (!R.length) $("tabBody").innerHTML = `<div class="card">${empty(`No stores on in ${esc(areaName())}`, `Add stores to this area, or switch areas at the top.`)}<div style="text-align:center;padding-bottom:24px"><button class="btn pri" id="toSet">Add stores</button></div></div>`;
+  else if (activeTab === "all") $("tabBody").innerHTML = `<div class="tags">${R.map((r) => tagCard(r, L, mine)).join("")}</div>`;
+  else { const r = R.find((x) => x.s.id === activeTab); $("tabBody").innerHTML = r ? detail(r, L, mine) : ""; }
+
+  for (const k in prices) delete prices[k]._fresh;
+  $("refAll").onclick = () => checkStores(onStores());
+  $("shareBtn").onclick = share;
+  if (!typing) {
+  $("editProd").onclick = openProdEdit;
+  $("watchBtn").onclick = toggleWatch;
+  $("listBtn").onclick = toggleList;
+  $("alertBtn").onclick = openAlert;
+  $("myPrice").onchange = saveMyPrice;
+  $("myPrice").onkeydown = (e) => { if (e.key === "Enter") e.target.blur(); };
+  if ($("matchLow")) $("matchLow").onclick = () => { $("myPrice").value = L.min.toFixed(2); saveMyPrice(); };
+  }
+  if ($("toSet")) $("toSet").onclick = $("goSettings").onclick;
+}
+
+function flag(p) {
+  if (!p || p.price == null) return "";
+  const m = p.source === "manual" ? "manual" : p.match;
+  const t = { exact: "Barcode match", possible: "Confirm it's the same item", pinned: "From your link", manual: "Entered by hand" }[m];
+  return t ? `<span class="flag ${esc(m)}">${t}</span>` : "";
+}
+function note(p, has) {
+  if (!p?.message || p.status === "found" || isBusy(p.store_id)) return "";
+  return `<div class="note ${p.status === "error" ? "err" : ""}">${has ? "Last check didn't go through, so this is the previous price. " : ""}${esc(p.message)}</div>`;
+}
+function tagCard({ s, p }, L, mine) {
+  const loading = isBusy(s.id), best = L?.ids.includes(s.id) && L.n > 1, has = p?.price != null, f = ago(p?.checked_at), link = safeUrl(p?.product_url);
+  return `<article class="tagc ${best ? "best" : ""} ${loading ? "busy" : ""} ${p?._fresh ? "fresh-in" : ""}" style="--c:${safeColor(s.color)}">
+    <span class="hole" aria-hidden="true"></span>
+    <div class="sname">${esc(s.name)}${best ? `<span class="stamp">Lowest</span>` : ""}</div>
+    <div style="display:flex;align-items:flex-end;gap:10px;justify-content:space-between">
+      <div class="amt ${has ? "" : "none"}">${has ? bigPrice(p.price) : loading ? "Checking the site…" : "No price yet"}</div>${has ? spark(s.id) : ""}
+    </div>
+    ${has ? vsMine(mine, +p.price) : ""}
+    ${has ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${flag(p)}${p.match === "possible" && safeUrl(p.product_url) ? `<button class="btn sm" data-ok="${esc(s.id)}">Yes, same item</button>` : ""}</div>` : ""}
+    ${has && (p.product_name || p.image_url) ? `<div class="match">${thumb(p.image_url)}<div style="min-width:0"><p>${esc(p.product_name || "")}</p>${p.size ? `<span class="small muted">${esc(p.size)}</span>` : ""}</div></div>` : ""}
+    ${note(p, has)}
+    <div class="acts">
+      <button class="btn sm" data-man="${esc(s.id)}">Enter price</button>
+      <button class="btn sm" data-pin="${esc(s.id)}">${p?.pinned_url ? "Edit item link" : "Set item link"}</button>
+      ${link ? `<a class="btn sm" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Open ↗</a>` : ""}
+    </div>
+    <div class="foot"><span class="age ${f.c}">${loading ? "Checking now" : f.t}</span><span style="flex:1"></span>
+      <button class="btn sm q" data-ref="${esc(s.id)}" ${loading ? "disabled" : ""} aria-label="Refresh ${esc(s.name)} price">${loading ? `<span class="spin" style="width:12px;height:12px"></span>` : "↻ Refresh"}</button></div>
+  </article>`;
+}
+function chart(storeId) {
+  const pts = history.filter((x) => x.store_id === storeId).slice(-40);
+  if (pts.length < 2) return `<p class="small muted">The price history chart fills in as this store gets checked over time.</p>`;
+  const W = 600, H = 150, P = 26, v = pts.map((x) => +x.price), mn = Math.min(...v), mx = Math.max(...v), rg = mx - mn || 1;
+  const xy = pts.map((x, i) => [P + i / (pts.length - 1) * (W - P * 2), H - P - (+x.price - mn) / rg * (H - P * 2)]);
+  const line = xy.map((p) => p.map((n) => n.toFixed(1)).join(",")).join(" ");
+  const first = new Date(pts[0].recorded_at).toLocaleDateString(), last = new Date(pts[pts.length - 1].recorded_at).toLocaleDateString();
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Price history from ${first} to ${last}">
+    <polyline points="${P},${H - P} ${line} ${W - P},${H - P}" fill="var(--leaf-bg)" stroke="none"/>
+    <polyline points="${line}" fill="none" stroke="var(--leaf)" stroke-width="2.5" stroke-linejoin="round"/>
+    ${xy.map(([x, y]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="var(--paper)" stroke="var(--leaf)" stroke-width="2"/>`).join("")}
+    <text x="${P}" y="14" font-size="12" fill="var(--muted)">${money(mx)}</text><text x="${P}" y="${H - 6}" font-size="12" fill="var(--muted)">${first}</text>
+    <text x="${W - P}" y="${H - 6}" font-size="12" fill="var(--muted)" text-anchor="end">${last}</text><text x="${W - P}" y="14" font-size="12" fill="var(--muted)" text-anchor="end">low ${money(mn)}</text></svg>`;
+}
+function detail({ s, p }, L, mine) {
+  const has = p?.price != null, f = ago(p?.checked_at), link = safeUrl(p?.product_url), best = L?.ids.includes(s.id) && L.n > 1, loading = isBusy(s.id);
+  return `<div class="card detail" style="border-left:7px solid ${safeColor(s.color)}">
+    ${thumb(has && p.image_url ? p.image_url : product.image_url, "xl")}
+    <div style="min-width:0">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h2 style="margin:0">${esc(s.name)}</h2>${best ? `<span class="stamp">Lowest</span>` : ""}${flag(p)}</div>
+      <div class="amt ${has ? "" : "none"}" style="margin:12px 0 6px">${has ? bigPrice(p.price) : loading ? "Checking the site…" : "No price yet"}</div>
+      ${has ? vsMine(mine, +p.price) : ""}
+      ${note(p, has)}
+      <table class="ctab">
+        <thead><tr><th></th><th>At ${esc(s.name)}</th><th>Your item</th></tr></thead>
+        <tr><th>Name</th><td>${esc(p?.product_name || "—")}</td><td>${esc(product.name || "—")}</td></tr>
+        <tr><th>Size</th><td>${esc(p?.size || "—")}</td><td>${esc(product.size || "—")}</td></tr>
+        <tr><th>Price</th><td><b>${money(p?.price)}</b></td><td><b>${money(mine)}</b></td></tr>
+        <tr><th>Checked</th><td colspan="2"><span class="age ${f.c}">${f.t}</span>${p?.checked_at ? ` <span class="small muted">${new Date(p.checked_at).toLocaleString()}</span>` : ""}</td></tr>
+        ${p?.pinned_url ? `<tr><th>Item link</th><td colspan="2" class="small" style="word-break:break-all">${esc(p.pinned_url)}</td></tr>` : ""}
+      </table>
+      <h2 style="font-size:17px">Price history</h2>
+      ${chart(s.id)}
+      <div class="acts" style="margin-top:14px">
+        <button class="btn pri" data-ref="${esc(s.id)}" ${loading ? "disabled" : ""}>${loading ? `<span class="spin"></span> Checking` : "↻ Refresh price"}</button>
+        <button class="btn" data-man="${esc(s.id)}">Enter price</button>
+        <button class="btn" data-pin="${esc(s.id)}">${p?.pinned_url ? "Edit" : "Set"} item link</button>
+        ${link ? `<a class="btn" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Open on ${esc(s.name)} ↗</a>` : ""}
+      </div>
+    </div></div>`;
+}
+
+$("tabs").onclick = (e) => { const t = e.target.closest("[data-tab]"); if (t) { activeTab = t.dataset.tab; renderProduct(); } };
+$("tabBody").onclick = (e) => {
+  const r = e.target.closest("[data-ref]"), m = e.target.closest("[data-man]"), p = e.target.closest("[data-pin]"), ok = e.target.closest("[data-ok]");
+  if (r) checkStores([stores.find((s) => s.id === r.dataset.ref)], true);
+  if (ok) confirmMatch(ok.dataset.ok);
+  if (m) openManual(m.dataset.man);
+  if (p) openPin(p.dataset.pin);
+};
+
+async function saveMyPrice() {
+  const v = $("myPrice").value.trim(), val = v === "" ? null : Math.round(parseFloat(v) * 100) / 100;
+  if (val != null && (isNaN(val) || val < 0)) return toast("Enter a price like 3.99.");
+  const { error } = await sb.from("pc_products").update({ my_price: val }).eq("id", product.id);
+  if (error) return toast(error.message);
+  product.my_price = val; renderProduct(); toast(val == null ? "Your price cleared" : `Your price set to ${money(val)}`);
+}
+async function toggleWatch() {
+  const w = !product.watch;
+  const { error } = await sb.from("pc_products").update({ watch: w }).eq("id", product.id);
+  if (error) return toast(error.message);
+  product.watch = w; renderProduct(); toast(w ? "Added to your watchlist" : "Removed from your watchlist");
+}
+async function share() {
+  const L = lowest();
+  const lines = [`${product.name || "Item"} (${product.barcode})${product.size ? " — " + product.size : ""}`, `${areaName()} prices:`];
+  for (const { s, p } of rowsFor()) lines.push(`${L?.ids.includes(s.id) ? "✅ " : "• "}${s.name}: ${p?.price != null ? money(p.price) : "no price"}`);
+  if (product.my_price != null) lines.push(`Our price: ${money(product.my_price)}`);
+  const text = lines.join("\n");
+  try { await navigator.clipboard.writeText(text); toast("Copied. Paste it into WhatsApp or a text."); }
+  catch { toast("Couldn't copy here. Select the prices on the page and copy them instead."); }
+}
+
+// manual price
+function openManual(id) {
+  editPriceStore = id; const p = prices[id], s = stores.find((x) => x.id === id);
+  $("mManT").textContent = `Price at ${s.name}`;
+  $("mPrice").value = p?.price ?? ""; $("mName").value = p?.product_name ?? product.name ?? ""; $("mSize").value = p?.size ?? product.size ?? "";
+  openM("mManual");
+}
+$("manForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const now = new Date().toISOString(), price = Math.round(parseFloat($("mPrice").value) * 100) / 100;
+  if (isNaN(price) || price <= 0) return toast("Enter a price like 3.99.");
+  const row = { product_id: product.id, store_id: editPriceStore, price, product_name: $("mName").value.trim() || null, size: $("mSize").value.trim() || null,
+    source: "manual", match: "manual", status: "found", message: null, checked_at: now, last_attempt_at: now };
+  if (!prices[editPriceStore]?.image_url) row.image_url = product.image_url;
+  const { data, error } = await sb.from("pc_prices").upsert(row, { onConflict: "product_id,store_id" }).select().single();
+  if (error) return toast(error.message);
+  { const last = history.filter((x) => x.store_id === editPriceStore).at(-1); if (!last || +last.price !== price) history.push({ store_id: editPriceStore, price, recorded_at: now }); }
+  prices[editPriceStore] = { ...data, _fresh: true }; closeM(e.target); renderProduct(); toast("Price saved");
+};
+
+// "Yes, same item": keep the page it found as this item's link, so it counts and later checks go straight there
+async function confirmMatch(id) {
+  const p = prices[id];
+  const { data, error } = await sb.from("pc_prices").update({ pinned_url: safeUrl(p.product_url), match: "pinned" }).eq("product_id", product.id).eq("store_id", id).select().single();
+  if (error) return toast(error.message);
+  prices[id] = data; renderProduct(); toast("Saved. This price now counts toward the lowest.");
+}
+
+// item page link
+function openPin(id) { editPriceStore = id; $("mPinT").textContent = `${stores.find((x) => x.id === id).name} item link`; $("pUrl").value = prices[id]?.pinned_url || ""; openM("mPin"); }
+async function setPin(url) {
+  const old = prices[editPriceStore];
+  const base = { product_id: product.id, store_id: editPriceStore, pinned_url: url };
+  const reset = old && old.source !== "manual" && old.pinned_url !== url ? { price: null, match: null, status: "pending", message: null, last_attempt_at: null } : {};
+  const { data, error } = await sb.from("pc_prices").upsert(old ? { ...base, ...reset } : { ...base, status: "pending" }, { onConflict: "product_id,store_id" }).select().single();
+  if (error) { toast(error.message); return false; }
+  prices[editPriceStore] = data; return true;
+}
+$("pinForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const u = safeUrl($("pUrl").value.trim());
+  if (!u) return toast("Paste the full link, starting with https://");
+  if (await setPin(u)) { closeM(e.target); checkStores([stores.find((s) => s.id === editPriceStore)], true); }
+};
+$("pClear").onclick = async () => { if (await setPin(null)) { closeM($("pClear")); renderProduct(); toast("Item link removed"); } };
+
+// edit item
+function openProdEdit() { $("eName").value = product.name || ""; $("eBrand").value = product.brand || ""; $("eSize").value = product.size || ""; $("eImg").value = product.image_url || ""; openM("mProd"); }
+$("prodForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const row = { name: $("eName").value.trim() || null, brand: $("eBrand").value.trim() || null, size: $("eSize").value.trim() || null, image_url: safeUrl($("eImg").value.trim()) || null };
+  const { data, error } = await sb.from("pc_products").update(row).eq("id", product.id).select().single();
+  if (error) return toast(error.message);
+  product = data; closeM(e.target); renderProduct(); toast("Item saved");
+};
+$("eDel").onclick = async () => {
+  if (!twoTap($("eDel"), "Tap again to delete item and its prices")) return;
+  const { error } = await sb.from("pc_products").delete().eq("id", product.id);
+  if (error) return toast(error.message);
+  closeM($("eDel")); toast("Item deleted"); goHome();
+};
+
+// ================= areas & stores =================
+function renderSettings() {
+  if (!areas.some((a) => a.id === setAreaId)) setAreaId = areaId;
+  $("areaList").innerHTML = areas.map((a) => `<div class="ar ${a.id === setAreaId ? "on" : ""}" data-ar="${esc(a.id)}" tabindex="0">${esc(a.name)}${a.id === areaId ? ` <span class="pill" style="font-size:12px">Active</span>` : ""}<span class="ct">${areaStores(a.id).length} stores</span></div>`).join("");
+  $("setAreaName").textContent = `${areaName(setAreaId)} stores`;
+  $("delArea").disabled = areas.length < 2;
+  const list = areaStores(setAreaId);
+  $("storeList").innerHTML = list.length ? list.map((s, i) => `
+    <div class="srow">
+      <span class="dot" style="background:${safeColor(s.color)}"></span>
+      <div style="min-width:0"><b>${esc(s.name)}</b>${/\{(barcode|upc12|ean13|name)\}/.test(s.search_url) ? ` <span class="pill auto" style="font-size:12px">Automatic</span>` : ` <span class="pill" style="font-size:12px">Prices by hand</span>`}</div>
+      <div style="display:flex;gap:4px;align-items:center">
+        <button class="btn sm q" data-mv="${esc(s.id)}" data-d="-1" ${i ? "" : "disabled"} aria-label="Move up">↑</button>
+        <button class="btn sm q" data-mv="${esc(s.id)}" data-d="1" ${i < list.length - 1 ? "" : "disabled"} aria-label="Move down">↓</button>
+        <label class="switch" title="${s.enabled ? "On: checked for every barcode" : "Off: skipped"}"><input type="checkbox" data-en="${esc(s.id)}" ${s.enabled ? "checked" : ""} aria-label="Check ${esc(s.name)}"><span></span></label>
+        <button class="btn sm" data-ed="${esc(s.id)}">Edit</button>
+      </div>
+      <div class="u">${esc(s.search_url)}</div>
+    </div>`).join("") : `<div class="empty" style="border-top:1px solid var(--line)"><b>No stores in ${esc(areaName(setAreaId))} yet</b>Add one, or use Quick add below.</div>`;
+  $("presets").innerHTML = PRESETS.map((p, i) => `<button class="btn sm" data-pre="${i}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</button>`).join("");
+}
+$("areaList").onclick = (e) => { const a = e.target.closest("[data-ar]"); if (a) { setAreaId = a.dataset.ar; renderSettings(); } };
+$("areaList").onkeydown = (e) => { if (e.key === "Enter") $("areaList").onclick(e); };
+$("addArea").onclick = () => {
+  editArea = null; $("mAreaT").textContent = "Add area"; $("arName").value = ""; $("arBtn").textContent = "Add area";
+  $("copyWrap").classList.remove("hidden");
+  $("arCopy").innerHTML = `<option value="">No stores (I'll add them)</option>` + areas.map((a) => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join("");
+  openM("mArea");
+};
+$("renameArea").onclick = () => { editArea = areas.find((a) => a.id === setAreaId); $("mAreaT").textContent = "Rename area"; $("arName").value = editArea.name; $("arBtn").textContent = "Save name"; $("copyWrap").classList.add("hidden"); openM("mArea"); };
+$("areaForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const name = $("arName").value.trim(); if (!name) return;
+  if (editArea) {
+    const { error } = await sb.from("pc_areas").update({ name }).eq("id", editArea.id); if (error) return toast(error.message);
+    toast("Area renamed");
+  } else {
+    const { data, error } = await sb.from("pc_areas").insert({ name, sort: areas.length }).select().single(); if (error) return toast(error.message);
+    const from = $("arCopy").value;
+    if (from) await sb.from("pc_stores").insert(areaStores(from).map((s) => ({ name: s.name, search_url: s.search_url, color: s.color, enabled: s.enabled, sort: s.sort, area_id: data.id })));
+    setAreaId = data.id; toast(`${name} added`);
+  }
+  closeM(e.target); await loadAll(); renderAreaSel(); renderSettings();
+};
+$("delArea").onclick = async () => {
+  const a = areas.find((x) => x.id === setAreaId);
+  if (areas.length < 2) return toast("Keep at least one area.");
+  if (!twoTap($("delArea"), `Tap again: delete ${a.name} + ${areaStores(a.id).length} stores`)) return;
+  const { error } = await sb.from("pc_areas").delete().eq("id", a.id); if (error) return toast(error.message);
+  await loadAll(); if (areaId === a.id) { areaId = areas[0].id; store.set("pc-area", areaId); }
+  setAreaId = areaId; renderAreaSel(); renderSettings(); toast(`${a.name} deleted`);
+};
+$("storeList").onclick = async (e) => {
+  const ed = e.target.closest("[data-ed]"), mv = e.target.closest("[data-mv]");
+  if (ed) openStore(stores.find((s) => s.id === ed.dataset.ed));
+  if (mv) {
+    const list = areaStores(setAreaId), i = list.findIndex((s) => s.id === mv.dataset.mv), j = i + +mv.dataset.d;
+    [list[i], list[j]] = [list[j], list[i]];
+    await Promise.all(list.map((s, k) => sb.from("pc_stores").update({ sort: k }).eq("id", s.id)));
+    await loadAll(); renderSettings();
+  }
+};
+$("storeList").onchange = async (e) => {
+  const en = e.target.closest("[data-en]"); if (!en) return;
+  const { error } = await sb.from("pc_stores").update({ enabled: en.checked }).eq("id", en.dataset.en);
+  if (error) toast(error.message);
+  await loadAll(); renderSettings();
+};
+$("presets").onclick = (e) => { const b = e.target.closest("[data-pre]"); if (b) openStore(null, PRESETS[+b.dataset.pre]); };
+$("addStore").onclick = () => openStore(null);
+function openStore(s, preset) {
+  editStore = s;
+  $("mStoreT").textContent = s ? `Edit ${s.name}` : `Add a store to ${areaName(setAreaId)}`;
+  $("sName").value = s?.name || preset?.name || "";
+  $("sUrl").value = s?.search_url || preset?.url || "";
+  $("sColor").value = safeColor(s?.color || preset?.color || "#1f7a4f");
+  $("sArea").innerHTML = areas.map((a) => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join("");
+  $("sArea").value = s?.area_id || setAreaId || areaId;
+  $("sTestOut").className = "hint"; $("sTestOut").textContent = "Checks the link above with a real barcode before you save.";
+  $("sDel").classList.toggle("hidden", !s);
+  openM("mStore");
+}
+$("storeForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const url = $("sUrl").value.trim();
+  if (url.includes("STORE-WEBSITE")) return toast("Replace STORE-WEBSITE.com with the store's own web address.");
+  if (!safeUrl(url.replace(/\{\w+\}/g, "x"))) return toast("The link needs to start with https://");
+  const btn = e.submitter || e.target.querySelector("button.pri"); btn.disabled = true;
+  const finalUrl = await detectSearchUrl(url);
+  btn.disabled = false;
+  if (finalUrl !== url) { $("sUrl").value = finalUrl; toast("Found this store's product search. Prices will be checked automatically."); }
+  const row = { name: $("sName").value.trim(), search_url: finalUrl, color: $("sColor").value, area_id: $("sArea").value };
+  const { error } = editStore ? await sb.from("pc_stores").update(row).eq("id", editStore.id)
+    : await sb.from("pc_stores").insert({ ...row, sort: areaStores(row.area_id).length });
+  if (error) return toast(error.message);
+  closeM(e.target); await loadAll(); renderSettings(); toast(`${row.name} saved`);
+};
+// A plain website works too. If the site runs on a platform the checker knows, switch to its product search.
+async function detectSearchUrl(url) {
+  if (/\{(barcode|upc12|ean13|name)\}/.test(url)) return url;
+  try { return (await call({ action: "detect", url })).search_url || url; } catch { return url; }
+}
+$("sTest").onclick = async () => {
+  const out = $("sTestOut"), btn = $("sTest");
+  const code = $("sTestCode").value.replace(/\D/g, "");
+  const url = $("sUrl").value.trim();
+  if (code.length < 6) { out.className = "hint bad"; out.textContent = "Type a barcode to test with (6 to 14 digits)."; return; }
+  if (!safeUrl(url.replace(/\{\w+\}/g, "x"))) { out.className = "hint bad"; out.textContent = "Enter the store's link first, starting with https://"; return; }
+  btn.disabled = true; out.className = "hint"; out.textContent = "Testing…";
+  try {
+    const r = await call({ action: "test", url, barcode: code });
+    if (r.search_url && r.search_url !== url) $("sUrl").value = r.search_url;
+    if (r.manual) { out.className = "hint"; out.textContent = "This store will be prices by hand. The checker can't search this site automatically."; return; }
+    if (r.status === "found") { out.className = "hint ok"; out.textContent = `Works. Found ${money(r.price)} for ${r.product_name || "the item"}${r.match === "exact" ? " (barcode match)." : ". You'll confirm it's the same item the first time."}`; }
+    else { out.className = "hint bad"; out.textContent = (r.item_name ? `Searched for ${r.item_name}. ` : "") + r.message; }
+  } catch (err) { out.className = "hint bad"; out.textContent = err.message; }
+  finally { btn.disabled = false; }
+};
+$("sDel").onclick = async () => {
+  if (!twoTap($("sDel"), `Tap again to delete ${editStore.name}`)) return;
+  const { error } = await sb.from("pc_stores").delete().eq("id", editStore.id); if (error) return toast(error.message);
+  closeM($("sDel")); await loadAll(); renderSettings(); toast(`${editStore.name} deleted`);
+};
+
+// ================= barcodes =================
+// Excel turns 049000050134 into 49000050134; put the zero back. Long codes with leading zeros become 12 digits.
+function normCode(raw) {
+  let c;
+  if (typeof raw === "number") { if (!Number.isSafeInteger(Math.round(raw))) return null; c = String(Math.round(raw)); }
+  else {
+    c = String(raw ?? "").trim();
+    if (/e[+-]?\d/i.test(c)) return null; // "7.1E+11" lost digits: can't be trusted
+    if (/^\d+\.0+$/.test(c)) c = c.replace(/\.0+$/, "");
+  }
+  c = c.replace(/\D/g, "");
+  if (c.length < 6 || c.length > 14) return null;
+  if (c.length >= 9 && c.length <= 11) c = c.padStart(12, "0");
+  if (c.length > 12 && /^0+/.test(c)) c = c.replace(/^0+/, "").padStart(12, "0");
+  return c;
+}
+
+// ================= price-drop alerts =================
+let alerts = {}, notifs = [], lastNotifId = 0;
+async function loadAlerts() {
+  const { data } = await sb.from("pc_alerts").select("*").eq("user_id", user.id);
+  alerts = Object.fromEntries((data || []).map((a) => [a.product_id, a]));
+}
+function openAlert() {
+  const a = alerts[product.id];
+  $("mAlertItem").textContent = product.name || product.barcode;
+  const vis = stores.filter((s) => s.enabled);
+  $("alStore").innerHTML = `<option value="">Any of my stores</option>` + vis.map((s) => `<option value="${esc(s.id)}">${esc(s.name)} (${esc(areaName(s.area_id))})</option>`).join("");
+  $("alStore").value = a?.store_id || "";
+  $("alBelow").value = a?.below ?? "";
+  $("alOff").classList.toggle("hidden", !a?.active);
+  openM("mAlert");
+}
+$("alertForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const below = $("alBelow").value ? Math.round(parseFloat($("alBelow").value) * 100) / 100 : null;
+  if (below != null && !(below > 0)) return toast("Enter a price like 3.99, or leave it empty for any drop.");
+  const row = { product_id: product.id, store_id: $("alStore").value || null, below, active: true };
+  const { data, error } = alerts[product.id]
+    ? await sb.from("pc_alerts").update(row).eq("id", alerts[product.id].id).select().single()
+    : await sb.from("pc_alerts").insert(row).select().single();
+  if (error) return toast(error.message);
+  alerts[product.id] = data; closeM(e.target); renderProduct();
+  toast("Alert saved. This item is rechecked every day.");
+  if ("Notification" in window && Notification.permission === "default") setTimeout(askPerm, 600);
+};
+$("alOff").onclick = async () => {
+  const a = alerts[product.id]; if (!a) return;
+  const { error } = await sb.from("pc_alerts").delete().eq("id", a.id);
+  if (error) return toast(error.message);
+  delete alerts[product.id]; closeM($("alOff")); renderProduct(); toast("Alert turned off");
+};
+async function loadNotifs() {
+  if (!me) return;
+  const { data } = await sb.from("pc_notifications").select("*, pc_products(name,barcode,image_url), pc_stores(name)").eq("user_id", user.id).order("created_at", { ascending: false }).limit(40);
+  const fresh = (data || []).filter((n) => !n.read && n.id > lastNotifId);
+  if (lastNotifId && fresh.length && "Notification" in window && Notification.permission === "granted") {
+    for (const n of fresh.slice(0, 3)) {
+      try { new Notification(`${n.pc_products?.name || "Item"} dropped to ${money(n.price)}`, { body: `At ${n.pc_stores?.name || "a store"} (was ${money(n.prev_price)})`, tag: "pc" + n.id }); } catch {}
+    }
+  }
+  notifs = data || []; lastNotifId = Math.max(lastNotifId, ...notifs.map((n) => n.id), 0) || 0;
+  const unread = notifs.filter((n) => !n.read).length;
+  $("bellN").textContent = unread; $("bellN").classList.toggle("hidden", !unread);
+  drawNotifs();
+}
+function drawNotifs() {
+  const ago2 = (t) => { const m = Math.round((Date.now() - new Date(t)) / 60000); return m < 60 ? `${Math.max(1, m)} min ago` : m < 1440 ? `${Math.round(m / 60)} hr ago` : `${Math.round(m / 1440)} days ago`; };
+  $("bellList").innerHTML = notifs.length ? notifs.map((n) => `<button class="notif ${n.read ? "" : "unread"}" data-n="${esc(n.id)}" data-bc="${esc(n.pc_products?.barcode || "")}">${thumb(n.pc_products?.image_url)}
+    <div><p><b>${esc(n.pc_products?.name || "Item")}</b> dropped to <b>${money(n.price)}</b> at ${esc(n.pc_stores?.name || "a store")}</p><small>Was ${money(n.prev_price)} · ${ago2(n.created_at)}</small></div></button>`).join("")
+    : `<div class="empty"><b>No price drops yet</b>Open an item and tap 🔔 Alert me. You'll see drops here.</div>`;
+  $("bellPerm").classList.toggle("hidden", !("Notification" in window) || Notification.permission !== "default");
+}
+$("bellBtn").onclick = (e) => { e.stopPropagation(); $("menu").classList.add("hidden"); $("bellPanel").classList.toggle("hidden"); };
+document.addEventListener("click", (e) => { if (!e.target.closest("#bellPanel,#bellBtn")) $("bellPanel").classList.add("hidden"); });
+$("bellList").onclick = async (e) => {
+  const b = e.target.closest("[data-n]"); if (!b) return;
+  $("bellPanel").classList.add("hidden");
+  await sb.from("pc_notifications").update({ read: true }).eq("id", b.dataset.n);
+  loadNotifs(); if (b.dataset.bc) openBarcode(b.dataset.bc);
+};
+$("bellRead").onclick = async () => { await sb.from("pc_notifications").update({ read: true }).eq("user_id", user.id).eq("read", false); loadNotifs(); };
+async function askPerm() { try { const r = await Notification.requestPermission(); toast(r === "granted" ? "Phone alerts are on while the price checker is open." : "Phone alerts are off. You'll still see drops under 🔔."); drawNotifs(); } catch {} }
+$("bellPerm").onclick = askPerm;
+
+// ================= users (admins) =================
+let members = [], memberAreas = [], editUser = null;
+async function goUsers() {
+  if (!isAdmin) return goHome();
+  product = null; show("usersView");
+  const [m, ma] = await Promise.all([sb.from("pc_members").select("*").order("created_at"), sb.from("pc_member_areas").select("*")]);
+  members = m.data || []; memberAreas = ma.data || [];
+  $("userList").innerHTML = members.map((u) => {
+    const ar = u.role === "admin" ? `<span class="chip">All locations</span>` : (memberAreas.filter((x) => x.user_id === u.user_id).map((x) => `<span class="chip">${esc(areaName(x.area_id) || "—")}</span>`).join("") || `<span class="small muted">No locations yet</span>`);
+    return `<div class="urow"><div style="min-width:0"><b>${esc(u.name || u.email)}</b> <span class="role ${u.role === "admin" ? "admin" : ""}">${u.role === "admin" ? "Admin" : "User"}</span><div class="small muted" style="word-break:break-all">${esc(u.email || "")}${u.user_id === user.id ? " · you" : ""}</div></div>
+      <div class="chips">${ar}</div><button class="btn sm" data-u="${esc(u.user_id)}">Edit</button></div>`;
+  }).join("") || empty("No users yet", "Add the first one.");
+}
+function openUser(u) {
+  editUser = u || null;
+  $("mUserT").textContent = u ? `Edit ${u.name || u.email}` : "Add user";
+  $("uName").value = u?.name || ""; $("uEmail").value = u?.email || ""; $("uEmail").disabled = !!u;
+  $("uPass").value = ""; $("uPass").required = !u;
+  $("uPassL").textContent = u ? "New password (leave empty to keep it)" : "Password";
+  $("uRole").value = u?.role || "user";
+  const mine = new Set(memberAreas.filter((x) => x.user_id === u?.user_id).map((x) => x.area_id));
+  $("uAreas").innerHTML = areas.map((a) => `<label><input type="checkbox" value="${esc(a.id)}" ${mine.has(a.id) ? "checked" : ""}>${esc(a.name)}</label>`).join("");
+  $("uDel").classList.toggle("hidden", !u || u.user_id === user.id);
+  openM("mUser");
+}
+$("addUser").onclick = () => openUser(null);
+$("userList").onclick = (e) => { const b = e.target.closest("[data-u]"); if (b) openUser(members.find((m) => m.user_id === b.dataset.u)); };
+$("userForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const body = { name: $("uName").value.trim(), role: $("uRole").value, area_ids: [...document.querySelectorAll("#uAreas input:checked")].map((x) => x.value) };
+  if ($("uPass").value) body.password = $("uPass").value;
+  $("uSave").disabled = true;
+  try {
+    if (editUser) await call({ action: "update_user", user_id: editUser.user_id, ...body });
+    else {
+      const r = await call({ action: "create_user", email: $("uEmail").value.trim(), ...body });
+      if (r.existing_account) toast("That email already had an account. They sign in with their existing password.");
+    }
+    closeM(e.target); if (!editUser) toast(`${body.name} added`); else toast("User saved");
+    if (editUser?.user_id === user.id) await boot(); else goUsers();
+  } catch (err) { toast(err.message); }
+  finally { $("uSave").disabled = false; }
+};
+$("uDel").onclick = async () => {
+  if (!twoTap($("uDel"), `Tap again to remove ${editUser.name || editUser.email}`)) return;
+  try { await call({ action: "delete_user", user_id: editUser.user_id }); closeM($("uDel")); toast("User removed"); goUsers(); } catch (err) { toast(err.message); }
+};
+
+// ================= Excel bulk check =================
+let bulkRows = [], bulkHead = [], bulkRun = null, bulkResults = [], bulkStores = [];
+function goBulk() { product = null; show("bulkView"); $("bulkArea").innerHTML = areas.map((a) => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join(""); $("bulkArea").value = areaId; }
+$("bulkDrop").ondragover = (e) => { e.preventDefault(); $("bulkDrop").classList.add("over"); };
+$("bulkDrop").ondragleave = () => $("bulkDrop").classList.remove("over");
+$("bulkDrop").ondrop = (e) => { e.preventDefault(); $("bulkDrop").classList.remove("over"); if (e.dataTransfer.files[0]) readBulk(e.dataTransfer.files[0]); };
+$("bulkFile").onchange = (e) => { if (e.target.files[0]) readBulk(e.target.files[0]); e.target.value = ""; };
+async function readBulk(file) {
+  try {
+    const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: "" }).filter((r) => r.some((c) => String(c).trim()));
+    if (rows.length < 2) return toast("That sheet looks empty. Put a header row on top and one item per row.");
+    bulkHead = rows[0].map((c, i) => String(c).trim() || `Column ${i + 1}`); bulkRows = rows.slice(1, 3001);
+    const find = (re) => bulkHead.findIndex((x) => re.test(x));
+    let ci = find(/barcode|upc|ean|gtin|scan|code/i);
+    if (ci < 0) ci = bulkHead.findIndex((_, i) => bulkRows.slice(0, 20).filter((r) => normCode(r[i])).length >= 3);
+    const opts = (sel, none) => `${none ? `<option value="-1">— none —</option>` : ""}` + bulkHead.map((x, i) => `<option value="${i}" ${i === sel ? "selected" : ""}>${esc(x)}</option>`).join("");
+    $("mapCode").innerHTML = opts(ci, false); $("mapName").innerHTML = opts(find(/name|desc|item|product|title/i), true); $("mapPrice").innerHTML = opts(find(/price|retail|sell|srp|cost/i), true);
+    $("bulkFileName").textContent = file.name;
+    $("bulkStep1").classList.add("hidden"); $("bulkStep2").classList.remove("hidden"); $("bulkStep3").classList.add("hidden");
+    drawBulkPreview();
+  } catch { toast("Couldn't read that file. Save it as .xlsx or .csv and try again."); }
+}
+function sheetPrice(v) {
+  if (typeof v === "number") return v;
+  let s = String(v ?? "").trim(); if (!s) return NaN;
+  const multi = s.match(/(\d+)\s*(?:for|\/)\s*\$?\s*(\d+(?:[.,]\d{1,2})?)/i);
+  if (multi && +multi[1] > 1) return parseFloat(multi[2].replace(",", ".")) / +multi[1];
+  s = s.replace(/[^0-9.,]/g, "");
+  if (/^\d+,\d{1,2}$/.test(s)) s = s.replace(",", "."); else s = s.replace(/,/g, "");
+  return parseFloat(s);
+}
+function bulkItems() {
+  const ci = +$("mapCode").value, ni = +$("mapName").value, pi = +$("mapPrice").value, seen = new Set(), out = [];
+  for (const r of bulkRows) {
+    const code = normCode(r[ci]); const ck = code && code.replace(/^0+/, ""); if (!code || seen.has(ck)) continue; seen.add(ck);
+    const pr = pi >= 0 ? sheetPrice(r[pi]) : NaN;
+    out.push({ code, name: ni >= 0 ? String(r[ni]).trim().slice(0, 300) : "", price: pr > 0 ? Math.round(pr * 100) / 100 : null });
+  }
+  return out;
+}
+function drawBulkPreview() {
+  const items = bulkItems();
+  const ci = +$("mapCode").value, bad = bulkRows.filter((r) => String(r[ci] ?? "").trim() && !normCode(r[ci])).length;
+  $("bulkCount").textContent = `${bulkRows.length} rows · ${items.length} items with a valid barcode${bad ? ` · ${bad} rows skipped (barcode missing digits, e.g. shown as 7.1E+11; format that column as Number with 0 decimals and save again)` : ""}${bulkRows.length >= 3000 ? " · first 3,000 rows" : ""}`;
+  $("bulkPreview").innerHTML = `<table class="grid"><thead><tr><th>Item</th><th>Barcode</th><th>Your price</th></tr></thead><tbody>${items.slice(0, 8).map((x) => `<tr style="cursor:default"><td>${esc(x.name || "—")}</td><td>${esc(x.code)}</td><td>${money(x.price)}</td></tr>`).join("")}</tbody></table>`;
+  $("bulkStart").disabled = !items.length;
+}
+["mapCode", "mapName", "mapPrice"].forEach((id) => $(id).onchange = drawBulkPreview);
+$("bulkReset").onclick = $("bulkNew").onclick = () => { if (bulkRun) bulkRun.stop = true; $("bulkStep1").classList.remove("hidden"); $("bulkStep2").classList.add("hidden"); $("bulkStep3").classList.add("hidden"); };
+$("bulkTemplate").onclick = () => {
+  const ws = XLSX.utils.aoa_to_sheet([["Barcode", "Item name", "Your price"], ["049000050134", "Diet Coke Caffeine Free 2L", 2.99], ["710069035102", "Gefen Pearl Barley 16 oz", 1.79]]);
+  ws["!cols"] = [{ wch: 16 }, { wch: 36 }, { wch: 12 }];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Items"); XLSX.writeFile(wb, "price-check-items.xlsx");
+};
+$("bulkStart").onclick = async () => {
+  const items = bulkItems(); if (!items.length) return;
+  const area = $("bulkArea").value;
+  const runStores = stores.filter((s) => s.area_id === area && s.enabled);
+  if (!runStores.length) return toast("That location has no stores turned on.");
+  if (bulkRun) bulkRun.stop = true;
+  const run = bulkRun = { stop: false, results: [], stores: runStores, area };
+  const live = () => run === bulkRun;
+  bulkStores = runStores; bulkResults = run.results;
+  $("bulkStep2").classList.add("hidden"); $("bulkStep3").classList.remove("hidden");
+  $("bulkStop").classList.remove("hidden"); $("bulkHint").textContent = "Saving your items…";
+  drawBulkGrid(); bulkProgress(0, items.length);
+  // 1) save the items (new ones added, your price updated where the sheet has one)
+  const byCode = {};
+  for (let i = 0; i < items.length && !run.stop; i += 200) {
+    const chunk = items.slice(i, i + 200);
+    await sb.from("pc_products").upsert(chunk.map((x) => ({ barcode: x.code, name: x.name || null, my_price: x.price })), { onConflict: "owner,barcode", ignoreDuplicates: true });
+    const { data } = await sb.from("pc_products").select("*").in("barcode", chunk.map((x) => x.code));
+    for (const p of data || []) byCode[p.barcode] = p;
+  }
+  const upd = items.filter((x) => byCode[x.code] && ((x.price != null && +byCode[x.code].my_price !== x.price) || (x.name && !byCode[x.code].name)));
+  await pool2(upd, 6, async (x) => {
+    if (run.stop) return;
+    const patch = {}; if (x.price != null) patch.my_price = Math.round(x.price * 100) / 100; if (x.name && !byCode[x.code].name) patch.name = x.name;
+    const { data } = await sb.from("pc_products").update(patch).eq("id", byCode[x.code].id).select().single(); if (data) byCode[x.code] = data;
+  });
+  // 2) check every item at every store in the location, a few stores at a time
+  if (live()) $("bulkHint").textContent = "Checking every store. Keep this page open; you can download the results at any time.";
+  let done = 0;
+  await pool2(items, 3, async (x) => {
+    if (run.stop) return;
+    const p = byCode[x.code]; let prices = [], prod = p;
+    if (p) {
+      try {
+        const r = await call({ action: "check_product", product_id: p.id, area_id: area }); prices = r.prices || []; prod = r.product || p;
+        // stores that only open in a real browser: run them through the helper
+        for (let i = 0; i < prices.length; i++) {
+          if (prices[i]?.status !== "needs_browser") continue;
+          const s = stores.find((x) => x.id === prices[i].store_id);
+          if (!s) continue;
+          try { prices[i] = await storeCheck({ action: "check", product_id: p.id, store_id: s.id }, s); }
+          catch (err) { prices[i] = { store_id: s.id, status: "error", message: err.message }; }
+        }
+      }
+      catch (err) { prices = [{ status: "error", message: err.message }]; }
+    }
+    run.results.push({ code: x.code, prod, prices }); done++;
+    if (live()) { bulkProgress(done, items.length); if (done % 3 === 0 || done === items.length) drawBulkGrid(); }
+  });
+  if (!live()) return;
+  drawBulkGrid(); $("bulkStop").classList.add("hidden");
+  $("bulkHint").textContent = run.stop ? `Stopped after ${done} items. Download what's done, or start again.` : `Done. ${done} items checked at ${runStores.length} stores.`;
+  bulkRun = null;
+};
+$("bulkStop").onclick = () => { if (bulkRun) { bulkRun.stop = true; $("bulkHint").textContent = "Stopping after the items in progress…"; } };
+async function pool2(list, n, fn) { let i = 0; await Promise.all(Array.from({ length: Math.min(n, list.length) }, async () => { while (i < list.length) { const k = i++; await fn(list[k]); } })); }
+function bulkProgress(d, t) { $("bulkProg").textContent = `${d} of ${t} items`; $("bulkBar").style.width = (t ? d / t * 100 : 0) + "%"; }
+function bulkRow(r) {
+  const by = {}; for (const x of r.prices) if (x.store_id && x.price != null && x.match !== "possible") by[x.store_id] = +x.price;
+  const vals = Object.values(by), min = vals.length ? Math.min(...vals) : null;
+  const lowStore = min != null ? bulkStores.find((s) => by[s.id] === min)?.name : "";
+  return { by, min, lowStore };
+}
+function drawBulkGrid() {
+  if (!bulkResults.length) { $("bulkGrid").innerHTML = empty("Starting…", ""); return; }
+  $("bulkGrid").innerHTML = `<table class="grid"><thead><tr><th>Item</th><th>You</th>${bulkStores.map((s) => `<th><span class="dotsm" style="background:${safeColor(s.color)}"></span>${esc(s.name)}</th>`).join("")}<th>Lowest</th></tr></thead><tbody>${bulkResults.map((r) => {
+    const { by, min, lowStore } = bulkRow(r), p = r.prod || {};
+    return `<tr data-bc="${esc(r.code)}"><td><div class="it">${thumb(p.image_url)}<div style="min-width:0"><b>${esc(p.name || "Unnamed item")}</b><span class="code">${esc(r.code)}</span></div></div></td>
+      <td class="you">${money(p.my_price)}</td>${bulkStores.map((s) => by[s.id] == null ? `<td class="na">—</td>` : `<td class="${Object.keys(by).length > 1 && by[s.id] === min ? "low" : ""}">${money(by[s.id])}</td>`).join("")}
+      <td><b>${money(min)}</b>${lowStore ? `<div class="small muted">${esc(lowStore)}</div>` : ""}</td></tr>`;
+  }).join("")}</tbody></table>`;
+}
+$("bulkGrid").onclick = (e) => { const r = e.target.closest("[data-bc]"); if (r) openBarcode(r.dataset.bc); };
+$("bulkDownload").onclick = () => {
+  if (!bulkResults.length) return toast("Nothing checked yet.");
+  const head = ["Barcode", "Item", "Size", "Your price", ...bulkStores.map((s) => s.name), "Lowest price", "Lowest at", "You vs lowest", "Stores with a price"];
+  const rows = bulkResults.map((r) => {
+    const { by, min, lowStore } = bulkRow(r), p = r.prod || {};
+    const mine = p.my_price != null ? +p.my_price : null;
+    return [r.code, p.name || "", p.size || "", mine ?? "", ...bulkStores.map((s) => by[s.id] ?? ""), min ?? "", lowStore || "", mine != null && min != null ? Math.round((mine - min) * 100) / 100 : "", Object.keys(by).length];
+  });
+  const ws = XLSX.utils.aoa_to_sheet([head, ...rows]);
+  ws["!cols"] = head.map((h, i) => ({ wch: i === 1 ? 40 : Math.max(10, String(h).length + 2) }));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Prices");
+  XLSX.writeFile(wb, `prices-${areaName($("bulkArea").value || areaId).replace(/[^\w]+/g, "-")}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+};
+
+// ================= photo scanning =================
+$("camBtn").onclick = () => $("camFile").click();
+$("camFile").onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  toast("Reading the barcode…");
+  try {
+    const reader = new Html5Qrcode("reader", { formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.ITF], verbose: false });
+    const text = await reader.scanFile(f, false); reader.clear(); openBarcode(text);
+  } catch { toast("Couldn't read a barcode in that photo. Try again closer, with the barcode flat and in focus."); }
+  e.target.value = "";
+};
+const stopCam = () => {};
+
+// handheld scanners type digits fast then Enter — catch them anywhere
+document.addEventListener("keydown", (e) => {
+  if (!user || document.querySelector(".modal:not(.hidden)")) return;
+  const t = document.activeElement?.tagName;
+  if (/^\d$/.test(e.key) && t !== "INPUT" && t !== "SELECT" && t !== "TEXTAREA") { $("code").value = ""; $("code").focus(); }
+});
+</script>
+</body>
+</html>
