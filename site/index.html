@@ -852,13 +852,14 @@ $("authForm").onsubmit = async (e) => {
   if (error) { $("aMsg").style.color = "var(--red)"; $("aMsg").textContent = /invalid/i.test(error.message) ? "That email and password don't match. Check them, or ask your admin to reset your password." : error.message; }
 };
 // one-time reset link: signs you in once, then asks for a new password
-(async () => {
+async function tryRecover() {
   const m = location.hash.match(/^#recover=([a-f0-9]{32,128})$/i); if (!m) return;
   history.replaceState(null, "", location.pathname);
   const { error } = await sb.auth.verifyOtp({ type: "recovery", token_hash: m[1] });
   if (error) { $("aMsg").style.color = "var(--red)"; $("aMsg").textContent = "This reset link was already used or has expired. Ask for a new one."; return; }
   setTimeout(() => { $("passForm").reset(); openM("mPassM"); toast("Choose your new password"); }, 800);
-})();
+}
+tryRecover(); addEventListener("hashchange", tryRecover);
 $("mSignOut").onclick = () => sb.auth.signOut();
 $("noSignOut").onclick = () => sb.auth.signOut();
 $("mPass").onclick = () => { $("menu").classList.add("hidden"); $("passForm").reset(); openM("mPassM"); };
