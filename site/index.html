@@ -518,12 +518,13 @@ body:not(.is-admin) .admin-only{display:none!important}
   <!-- EXCEL BULK CHECK -->
   <section id="bulkView" class="hidden">
     <div class="pagehead">
-      <div><h1>Excel check</h1><p>Upload a sheet of items and get every store's price for all of them.</p></div>
+      <div><h1>Excel check</h1><p>Upload a sheet of items and get every store's price for all of them, from the price lists collected for the location.</p></div>
       <div class="tools"><button class="btn" id="bulkTemplate">Download a blank sheet</button></div>
     </div>
     <div id="bulkStep1">
       <label class="drop" id="bulkDrop"><b>Drop your Excel or CSV file here</b><span class="muted">or tap to choose a file (.xlsx, .xls, .csv)</span><input type="file" id="bulkFile" accept=".xlsx,.xls,.csv" hidden></label>
-      <p class="hint" style="margin-top:10px">One row per item. A barcode column is required. An item name column and a your-price column are optional.</p>
+      <p class="hint" style="margin-top:10px">One row per item. A barcode column is required. An item name column and a your-price column are optional. Every sheet you check is saved here so you can open it again with fresh prices.</p>
+      <div id="bulkSaved"></div>
     </div>
     <div id="bulkStep2" class="hidden card" style="padding:18px">
       <h2 id="bulkFileName" style="font-size:19px">Your file</h2>
@@ -829,9 +830,24 @@ const VIEWS = ["homeView", "prodView", "setView", "compareView", "listView", "re
 function show(view) {
   for (const v of VIEWS) $(v).classList.toggle("hidden", v !== view);
   document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("on", b.dataset.v === NAV[view]));
-  if (view !== "prodView" && /^#\d+$/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search);
+  // the browser's Back button moves between the app's own pages instead of leaving it
+  if (!navPop && view !== "noView") {
+    const st = { v: view, bc: view === "prodView" ? product?.barcode || null : null }, cur = window.history.state;
+    const url = location.pathname + location.search + (st.bc ? "#" + st.bc : "");
+    try { if (!cur || (cur.v === st.v && cur.bc === st.bc)) window.history.replaceState(st, "", url); else window.history.pushState(st, "", url); } catch {}
+  }
   window.scrollTo(0, 0);
 }
+let navPop = false;
+addEventListener("popstate", async (e) => {
+  const st = e.state; if (!st || !st.v || !user) return;
+  document.querySelectorAll(".modal:not(.hidden)").forEach((m) => m.classList.add("hidden"));
+  navPop = true;
+  try {
+    if (st.v === "prodView" && st.bc) await openBarcode(st.bc);
+    else await ({ homeView: goHome, compareView: goCompare, listView: goList, reportView: goReport, bulkView: goBulk, usersView: goUsers, dailyView: goDaily, setView: () => $("goSettings").onclick() }[st.v] || goHome)();
+  } catch {} finally { navPop = false; }
+});
 function setHH() { document.documentElement.style.setProperty("--hh", $("hdr").offsetHeight + "px"); }
 addEventListener("resize", setHH);
 document.fonts?.ready.then(setHH);
@@ -914,7 +930,7 @@ async function boot() {
   const hc = location.hash.match(/^#(\d{6,14})$/);
   if (hc) openBarcode(hc[1]); else goHome();
 }
-addEventListener("hashchange", () => { const hc = location.hash.match(/^#(\d{6,14})$/); if (hc && hc[1] !== product?.barcode) openBarcode(hc[1]); });
+addEventListener("hashchange", () => { if (navPop) return; const hc = location.hash.match(/^#(\d{6,14})$/); if (hc && hc[1] !== product?.barcode) openBarcode(hc[1]); });
 async function loadAll(strict) {
   const [a, s] = await Promise.all([
     sb.from("pc_areas").select("*").order("sort").order("created_at"),
@@ -1316,7 +1332,7 @@ async function openBarcode(raw) {
   if (seq !== openSeq) return;
   prices = Object.fromEntries((pr.data || []).map((x) => [x.store_id, x]));
   history = hi.data || [];
-  show("prodView"); try { history.replaceState(null, "", "#" + p.barcode); } catch {}
+  show("prodView");
   renderProduct(); autoCheck();
 }
 function autoCheck() {
@@ -1867,7 +1883,7 @@ $("uDel").onclick = async () => {
 
 // ================= Excel bulk check =================
 let bulkRows = [], bulkHead = [], bulkRun = null, bulkResults = [], bulkStores = [];
-function goBulk() { product = null; show("bulkView"); $("bulkArea").innerHTML = areas.map((a) => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join(""); $("bulkArea").value = areaId; }
+function goBulk() { product = null; show("bulkView"); $("bulkArea").innerHTML = areas.map((a) => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join(""); $("bulkArea").value = areaId; loadSheets(); }
 $("bulkDrop").ondragover = (e) => { e.preventDefault(); $("bulkDrop").classList.add("over"); };
 $("bulkDrop").ondragleave = () => $("bulkDrop").classList.remove("over");
 $("bulkDrop").ondrop = (e) => { e.preventDefault(); $("bulkDrop").classList.remove("over"); if (e.dataTransfer.files[0]) readBulk(e.dataTransfer.files[0]); };
@@ -1914,7 +1930,7 @@ function drawBulkPreview() {
   $("bulkStart").disabled = !items.length;
 }
 ["mapCode", "mapName", "mapPrice"].forEach((id) => $(id).onchange = drawBulkPreview);
-$("bulkReset").onclick = $("bulkNew").onclick = () => { if (bulkRun) bulkRun.stop = true; $("bulkStep1").classList.remove("hidden"); $("bulkStep2").classList.add("hidden"); $("bulkStep3").classList.add("hidden"); };
+$("bulkReset").onclick = $("bulkNew").onclick = () => { if (bulkRun) bulkRun.stop = true; $("bulkStep1").classList.remove("hidden"); $("bulkStep2").classList.add("hidden"); $("bulkStep3").classList.add("hidden"); loadSheets(); };
 $("bulkTemplate").onclick = () => {
   const ws = XLSX.utils.aoa_to_sheet([["Barcode", "Item name", "Your price"], ["049000050134", "Diet Coke Caffeine Free 2L", 2.99], ["710069035102", "Gefen Pearl Barley 16 oz", 1.79]]);
   ws["!cols"] = [{ wch: 16 }, { wch: 36 }, { wch: 12 }];
@@ -1922,57 +1938,67 @@ $("bulkTemplate").onclick = () => {
 };
 $("bulkStart").onclick = async () => {
   const items = bulkItems(); if (!items.length) return;
-  const area = $("bulkArea").value;
-  const runStores = stores.filter((s) => s.area_id === area && s.enabled);
+  const area = $("bulkArea").value, name = ($("bulkFileName").textContent || "My sheet").slice(0, 120);
+  // keep the sheet so it's here next time (same file name replaces the old copy, never a second one)
+  const row = { name, area_id: area, items: items.map((x) => ({ c: x.code, n: x.name || "", p: x.price })) };
+  const { data: old } = await sb.from("pc_sheets").select("id").eq("name", name).limit(1);
+  const res = old?.[0] ? await sb.from("pc_sheets").update(row).eq("id", old[0].id) : await sb.from("pc_sheets").insert(row);
+  if (res.error) toast("Couldn't save the sheet: " + res.error.message);
+  bulkLookup(items, area);
+};
+// Looks every barcode up in the price lists already collected for the location. Fast: no store websites are opened.
+async function bulkLookup(items, area) {
+  const runStores = stores.filter((s) => s.area_id === area && s.enabled && !s.is_mine);
+  const mine = stores.find((s) => s.area_id === area && s.enabled && s.is_mine);
   if (!runStores.length) return toast("That location has no stores turned on.");
   if (bulkRun) bulkRun.stop = true;
   const run = bulkRun = { stop: false, results: [], stores: runStores, area };
   const live = () => run === bulkRun;
-  bulkStores = runStores; bulkResults = run.results;
-  $("bulkStep2").classList.add("hidden"); $("bulkStep3").classList.remove("hidden");
-  $("bulkStop").classList.remove("hidden"); $("bulkHint").textContent = "Saving your items…";
+  bulkStores = runStores; bulkResults = run.results; $("bulkArea").value = area;
+  $("bulkStep1").classList.add("hidden"); $("bulkStep2").classList.add("hidden"); $("bulkStep3").classList.remove("hidden");
+  $("bulkStop").classList.remove("hidden"); $("bulkHint").textContent = "Looking up your items…";
   drawBulkGrid(); bulkProgress(0, items.length);
-  // 1) save the items (new ones added, your price updated where the sheet has one)
-  const byCode = {};
-  for (let i = 0; i < items.length && !run.stop; i += 200) {
-    const chunk = items.slice(i, i + 200);
-    await sb.from("pc_products").upsert(chunk.map((x) => ({ barcode: x.code, name: x.name || null, my_price: x.price })), { onConflict: "owner,barcode", ignoreDuplicates: true });
-    const { data } = await sb.from("pc_products").select("*").in("barcode", chunk.map((x) => x.code));
-    for (const p of data || []) byCode[p.barcode] = p;
+  let failed = "";
+  for (let i = 0; i < items.length && !run.stop; i += 500) {
+    const part = items.slice(i, i + 500);
+    const { data, error } = await sb.rpc("pc_bulk_lookup", { p_area: area, p_codes: part.map((x) => x.code) });
+    if (!live()) return;
+    if (error) { failed = error.message; break; }
+    const got = {}; for (const r of data || []) got[r.ord] = Array.isArray(r.stores) ? r.stores : [];
+    part.forEach((x, k) => {
+      const st = got[k + 1] || [], my = mine && st.find((y) => y.s === mine.id), any = my || st[0];
+      run.results.push({ code: x.code,
+        prod: { barcode: x.code, name: x.name || any?.n || "", size: any?.z || "", my_price: x.price ?? (my ? +my.p : null), image_url: (my || st.find((y) => y.i))?.i || null },
+        prices: runStores.map((s) => { const y = st.find((z) => z.s === s.id); return y ? { store_id: s.id, status: "found", price: +y.p, product_name: y.n, match: y.k === "name" ? "name" : "exact" } : { store_id: s.id, status: "not_found" }; }) });
+    });
+    bulkProgress(run.results.length, items.length); drawBulkGrid();
   }
-  const upd = items.filter((x) => byCode[x.code] && ((x.price != null && +byCode[x.code].my_price !== x.price) || (x.name && !byCode[x.code].name)));
-  await pool2(upd, 6, async (x) => {
-    if (run.stop) return;
-    const patch = {}; if (x.price != null) patch.my_price = Math.round(x.price * 100) / 100; if (x.name && !byCode[x.code].name) patch.name = x.name;
-    const { data } = await sb.from("pc_products").update(patch).eq("id", byCode[x.code].id).select().single(); if (data) byCode[x.code] = data;
-  });
-  // 2) check every item at every store in the location, a few stores at a time
-  if (live()) $("bulkHint").textContent = "Checking every store. Keep this page open; you can download the results at any time.";
-  let done = 0;
-  await pool2(items, 3, async (x) => {
-    if (run.stop) return;
-    const p = byCode[x.code]; let prices = [], prod = p;
-    if (p) {
-      try {
-        const r = await call({ action: "check_product", product_id: p.id, area_id: area }); prices = r.prices || []; prod = r.product || p;
-        // stores that only open in a real browser: run them through the helper
-        for (let i = 0; i < prices.length; i++) {
-          if (prices[i]?.status !== "needs_browser") continue;
-          const s = stores.find((x) => x.id === prices[i].store_id);
-          if (!s) continue;
-          try { prices[i] = await storeCheck({ action: "check", product_id: p.id, store_id: s.id }, s); }
-          catch (err) { prices[i] = { store_id: s.id, status: "error", message: err.message }; }
-        }
-      }
-      catch (err) { prices = [{ status: "error", message: err.message }]; }
-    }
-    run.results.push({ code: x.code, prod, prices }); done++;
-    if (live()) { bulkProgress(done, items.length); if (done % 3 === 0 || done === items.length) drawBulkGrid(); }
-  });
   if (!live()) return;
-  drawBulkGrid(); $("bulkStop").classList.add("hidden");
-  $("bulkHint").textContent = run.stop ? `Stopped after ${done} items. Download what's done, or start again.` : `Done. ${done} items checked at ${runStores.length} stores.`;
+  $("bulkStop").classList.add("hidden");
+  const found = run.results.filter((r) => r.prices.some((y) => y.price != null)).length;
+  const { data: sy } = await sb.from("pc_sync").select("store_id,last_done").in("store_id", runStores.map((s) => s.id));
+  const ready = new Set((sy || []).filter((y) => y.last_done).map((y) => y.store_id)), waiting = runStores.filter((s) => !ready.has(s.id)).map((s) => s.name);
+  $("bulkHint").textContent = failed ? `Stopped: ${failed}` : !ready.size ? `No price lists have been collected for ${areaName(area)} yet, so there is nothing to compare against. Open “Who's cheaper”, set these stores to update, then open this sheet again. Or choose another location.`
+    : `Done. ${found.toLocaleString()} of ${run.results.length.toLocaleString()} items found at another store.${waiting.length ? ` No price list yet for: ${waiting.join(", ")}.` : ""} This sheet is saved under Excel check.`;
   bulkRun = null;
+}
+async function loadSheets() {
+  const { data } = await sb.from("pc_sheets").select("id,name,area_id,created_at,items").order("created_at", { ascending: false }).limit(30);
+  bulkSheets = data || [];
+  $("bulkSaved").innerHTML = bulkSheets.length ? `<h2 style="font-size:19px;margin:22px 0 8px">Your saved sheets</h2><div class="card" style="overflow:hidden">${bulkSheets.map((t) => `<div class="dstore"><div class="dn"><b>${esc(t.name)}</b><span>${(t.items || []).length.toLocaleString()} items · ${esc(areaName(t.area_id) || "no location")} · saved ${new Date(t.created_at).toLocaleDateString()}</span></div><button class="btn pri sm" data-open="${esc(t.id)}">Open with today's prices</button><button class="btn sm danger" data-del="${esc(t.id)}">Delete</button></div>`).join("")}</div>` : "";
+}
+let bulkSheets = [];
+$("bulkSaved").onclick = async (e) => {
+  const o = e.target.closest("[data-open]"), d = e.target.closest("[data-del]");
+  if (o) {
+    const t = bulkSheets.find((x) => x.id === o.dataset.open); if (!t) return;
+    $("bulkFileName").textContent = t.name;
+    bulkLookup((t.items || []).map((x) => ({ code: String(x.c), name: x.n || "", price: x.p ?? null })), areas.some((a) => a.id === t.area_id) ? t.area_id : areaId);
+  } else if (d) {
+    if (!twoTap(d, "Tap again to delete")) return;
+    const { error } = await sb.from("pc_sheets").delete().eq("id", d.dataset.del); if (error) return toast(error.message);
+    toast("Sheet deleted"); loadSheets();
+  }
 };
 $("bulkStop").onclick = () => { if (bulkRun) { bulkRun.stop = true; $("bulkHint").textContent = "Stopping after the items in progress…"; } };
 async function pool2(list, n, fn) { let i = 0; await Promise.all(Array.from({ length: Math.min(n, list.length) }, async () => { while (i < list.length) { const k = i++; await fn(list[k]); } })); }
