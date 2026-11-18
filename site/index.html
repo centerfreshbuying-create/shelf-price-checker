@@ -569,7 +569,7 @@ body:not(.is-admin) .admin-only{display:none!important}
     </div>
     <div class="kpis" id="dailyKpis"></div>
     <details class="card dsync" id="dailyDet"><summary>Stores and update schedule <span id="dailyDetN" class="small muted" style="font-weight:600"></span></summary><div id="dailyStores"></div></details>
-    <div class="seg" id="dailySeg" style="margin-bottom:12px"><button data-f="higher" class="on">Someone is cheaper</button><button data-f="cheaper">You're cheapest</button><button data-f="same">Same price</button><button data-f="all">All compared</button><button data-f="alone">Only at your store</button></div>
+    <div class="seg" id="dailySeg" style="margin-bottom:12px"><button data-f="higher" class="on">Someone is cheaper</button><button data-f="cheaper">You're cheapest</button><button data-f="same">Same price</button><button data-f="all">All compared</button><button data-f="alone">Only at your store</button><button data-f="ignored">Ignored</button></div>
     <div class="gridwrap" id="dailyGrid"></div>
     <div id="dailyMoreBox" style="text-align:center;margin:14px 0"></div>
   </section>
@@ -1180,7 +1180,7 @@ async function loadDailyKpis() {
 }
 function dailyQuery(cols) {
   let q = sb.from("pc_compare").select(cols).eq("area_id", areaId);
-  q = dailyF !== "all" ? q.eq("verdict", dailyF) : q.neq("verdict", "alone");
+  q = dailyF !== "all" ? q.eq("verdict", dailyF) : q.in("verdict", ["higher", "cheaper", "same"]);
   const t = dailyQ.trim().slice(0, 60).replace(/[%_\\,()]/g, "");
   if (t) q = /^\d{4,}$/.test(t) ? q.like("barcode", `%${t}%`) : q.ilike("name", `%${t}%`);
   q = dailyF === "cheaper" ? q.order("diff", { ascending: true }) : dailyF === "alone" ? q.order("name") : q.order("diff", { ascending: false, nullsFirst: false });
@@ -1202,14 +1202,14 @@ function drawDaily() {
     const none = !dailySync.some((s) => s.is_mine) ? "Your admin needs to choose which store is yours." : dailySync.some((s) => s.status === "running" || s.requested) ? "The price lists are being collected. This page fills in by itself in a few minutes." : dailyQ ? "No items match that search." : "Nothing in this group.";
     $("dailyGrid").innerHTML = `<div class="dnote">${none}</div>`; $("dailyMoreBox").innerHTML = ""; return;
   }
-  $("dailyGrid").innerHTML = `<table class="grid"><thead><tr><th>Item</th><th>Your price</th><th>Cheapest</th><th>Difference</th>${cols.map((s) => `<th>${esc(s.name)}</th>`).join("")}</tr></thead><tbody>${dailyRows.map((p) => {
+  $("dailyGrid").innerHTML = `<table class="grid"><thead><tr><th>Item</th><th>Your price</th><th>Cheapest</th><th>Difference</th>${cols.map((s) => `<th>${esc(s.name)}</th>`).join("")}<th></th></tr></thead><tbody>${dailyRows.map((p) => {
     const by = Object.fromEntries((Array.isArray(p.stores) ? p.stores : []).map((x) => [x.s, x]));
     const g = p.diff == null ? null : +p.diff;
     return `<tr ${/^\d{6,14}$/.test(p.barcode || "") ? `data-bc="${esc(p.barcode)}"` : `style="cursor:default"`}><td><div class="it">${thumb(p.image_url)}<div style="min-width:0"><b>${esc(p.name)}</b><span class="code">${esc(p.barcode || p.size || "")}</span></div></div></td>
       <td class="you">${money(p.my_price)}</td>
       <td>${p.low_price == null ? "—" : `<b>${money(p.low_price)}</b><div class="small muted">${esc(nameOf[p.low_store] || "")}</div>`}</td>
       <td class="${g > 0.004 ? "hi" : g < -0.004 ? "lo" : ""}">${g == null ? "—" : (g > 0 ? "+" : "") + money(g).replace("$-", "-$")}${g != null && +p.low_price ? `<div class="small muted">${(g / p.low_price * 100).toFixed(0)}%</div>` : ""}</td>
-      ${cols.map((s) => { const x = by[s.id]; return x ? `<td class="${+x.p === +p.low_price && +x.p < +p.my_price ? "low" : ""}" title="${esc(x.n || "")}${x.k === "name" ? " (matched by name)" : ""}">${money(x.p)}${x.k === "name" ? `<span class="approx">≈</span>` : ""}</td>` : `<td class="na">—</td>`; }).join("")}</tr>`;
+      ${cols.map((s) => { const x = by[s.id]; return x ? `<td class="${+x.p === +p.low_price && +x.p < +p.my_price ? "low" : ""}" title="${esc(x.n || "")}${x.k === "name" ? " (matched by name)" : ""}">${money(x.p)}${x.k === "name" ? `<span class="approx">≈</span>` : ""}</td>` : `<td class="na">—</td>`; }).join("")}<td><button class="btn sm" data-ign="${esc(p.my_key)}" title="${dailyF === "ignored" ? "Put this item back in the comparison" : "Leave this item out of the comparison"}">${dailyF === "ignored" ? "Restore" : "Ignore"}</button></td></tr>`;
   }).join("")}</tbody></table>`;
   $("dailyMoreBox").innerHTML = dailyMore ? `<button class="btn" id="dailyMoreBtn">Show ${DAILY_PAGE} more</button>` : "";
 }
@@ -1225,7 +1225,19 @@ function dailyMark() {
   document.querySelectorAll("#dailyKpis .kpi").forEach((x) => x.classList.toggle("on", x.dataset.f === dailyF));
 }
 $("dailyQ").oninput = () => { clearTimeout($("dailyQ").h); $("dailyQ").h = setTimeout(() => { dailyQ = $("dailyQ").value; loadDaily(false).catch((er) => toast(er.message)); }, 350); };
-$("dailyGrid").onclick = (e) => { const r = e.target.closest("[data-bc]"); if (r) openBarcode(r.dataset.bc); };
+$("dailyGrid").onclick = async (e) => {
+  const g = e.target.closest("[data-ign]");
+  if (g) {
+    e.stopPropagation(); g.disabled = true; const on = dailyF !== "ignored";
+    try {
+      const { error } = await sb.rpc("pc_ignore_item", { p_area: areaId, p_key: g.dataset.ign, p_on: on }); if (error) throw new Error(error.message);
+      dailyRows = dailyRows.filter((p) => p.my_key !== g.dataset.ign); drawDaily(); loadDailyKpis().catch(() => {});
+      toast(on ? "Ignored. Find it under the Ignored tab to bring it back." : "Back in the comparison");
+    } catch (er) { g.disabled = false; toast(er.message); }
+    return;
+  }
+  const r = e.target.closest("[data-bc]"); if (r) openBarcode(r.dataset.bc);
+};
 $("dailyMoreBox").onclick = (e) => { if (e.target.closest("#dailyMoreBtn")) loadDaily(true).catch((er) => toast(er.message)); };
 $("dailyStores").onchange = async (e) => {
   const s = e.target.closest("[data-sync]"); if (!s || !isAdmin || !["off", "daily", "weekly"].includes(s.value)) return;
