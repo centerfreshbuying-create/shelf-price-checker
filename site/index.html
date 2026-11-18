@@ -298,6 +298,7 @@ table.grid{border-collapse:separate;border-spacing:0;width:100%;font-variant-num
 .grid .it b{font-weight:650;font-size:14px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .dotsm{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:1px}
 .dsync{margin-bottom:14px;overflow:hidden}
+.kpi.on{border-color:var(--leaf);box-shadow:0 0 0 2px var(--leaf)}
 .dsync summary{padding:12px 16px;font-weight:700;cursor:pointer}
 .dstore{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--line);flex-wrap:wrap}
 .dstore .dn{flex:1;min-width:180px} .dstore .dn span:last-child{display:block;font-size:13px;color:var(--muted)}
@@ -567,7 +568,7 @@ body:not(.is-admin) .admin-only{display:none!important}
       <div class="tools"><input id="dailyQ" type="search" placeholder="Search item or barcode" aria-label="Search items"><button class="btn" id="dailyCopy">Download Excel</button></div>
     </div>
     <div class="kpis" id="dailyKpis"></div>
-    <details class="card dsync" open><summary>Stores and update schedule</summary><div id="dailyStores"></div></details>
+    <details class="card dsync" id="dailyDet"><summary>Stores and update schedule <span id="dailyDetN" class="small muted" style="font-weight:600"></span></summary><div id="dailyStores"></div></details>
     <div class="seg" id="dailySeg" style="margin-bottom:12px"><button data-f="higher" class="on">Someone is cheaper</button><button data-f="cheaper">You're cheapest</button><button data-f="same">Same price</button><button data-f="all">All compared</button><button data-f="alone">Only at your store</button></div>
     <div class="gridwrap" id="dailyGrid"></div>
     <div id="dailyMoreBox" style="text-align:center;margin:14px 0"></div>
@@ -1160,6 +1161,9 @@ function drawDailySync() {
       ${s.is_mine ? "" : `<button class="btn sm" data-mine="${esc(s.id)}" title="Compare everything against this store instead">Make mine</button>`}` : ""}
     </div>`;
   }).join("") : `<div class="dnote">This area has no stores yet. Add them under Areas &amp; stores.</div>`;
+  const bad = dailySync.filter((s) => s.status === "error" && !s.requested).length, ok = dailySync.filter((s) => s.last_done).length;
+  $("dailyDetN").textContent = `· ${ok} of ${dailySync.length} stores collected${bad ? ` · ${bad} need attention` : ""}`;
+  if (!dailySync.some((s) => s.is_mine) || !ok) $("dailyDet").open = true;
 }
 async function loadDailyKpis() {
   const { data, error } = await sb.rpc("pc_compare_stats", { p_area: areaId });
@@ -1172,6 +1176,7 @@ async function loadDailyKpis() {
     <button class="kpi bad" data-f="higher"><small>Someone is cheaper</small><b>${n("higher").toLocaleString()}</b><span>${n("higher") ? `you're ${k.higher.pct}% higher on average` : "on none of them"}</span></button>
     <button class="kpi good" data-f="cheaper"><small>You're the cheapest</small><b>${n("cheaper").toLocaleString()}</b><span>${n("cheaper") ? `by ${Math.abs(k.cheaper.pct)}% on average` : "&nbsp;"}</span></button>
     <button class="kpi" data-f="same"><small>Same price</small><b>${n("same").toLocaleString()}</b><span>matches the lowest store</span></button>`;
+  dailyMark();
 }
 function dailyQuery(cols) {
   let q = sb.from("pc_compare").select(cols).eq("area_id", areaId);
@@ -1208,8 +1213,17 @@ function drawDaily() {
   }).join("")}</tbody></table>`;
   $("dailyMoreBox").innerHTML = dailyMore ? `<button class="btn" id="dailyMoreBtn">Show ${DAILY_PAGE} more</button>` : "";
 }
-$("dailySeg").onclick = (e) => { const b = e.target.closest("[data-f]"); if (!b) return; dailyF = b.dataset.f; document.querySelectorAll("#dailySeg button").forEach((x) => x.classList.toggle("on", x === b)); loadDaily(false).catch((er) => toast(er.message)); };
-$("dailyKpis").onclick = (e) => { const b = e.target.closest("[data-f]"); if (!b) return; dailyF = b.dataset.f; document.querySelectorAll("#dailySeg button").forEach((x) => x.classList.toggle("on", x.dataset.f === dailyF)); loadDaily(false).catch((er) => toast(er.message)); };
+$("dailySeg").onclick = (e) => { const b = e.target.closest("[data-f]"); if (!b) return; dailyF = b.dataset.f; dailyMark(); loadDaily(false).catch((er) => toast(er.message)); };
+$("dailyKpis").onclick = async (e) => {
+  const b = e.target.closest("[data-f]"); if (!b) return; dailyF = b.dataset.f; dailyMark();
+  $("dailyGrid").innerHTML = `<div class="dnote">Loading…</div>`;
+  try { await loadDaily(false); } catch (er) { toast(er.message); }
+  $("dailySeg").scrollIntoView({ behavior: "smooth", block: "start" });
+};
+function dailyMark() {
+  document.querySelectorAll("#dailySeg button").forEach((x) => x.classList.toggle("on", x.dataset.f === dailyF));
+  document.querySelectorAll("#dailyKpis .kpi").forEach((x) => x.classList.toggle("on", x.dataset.f === dailyF));
+}
 $("dailyQ").oninput = () => { clearTimeout($("dailyQ").h); $("dailyQ").h = setTimeout(() => { dailyQ = $("dailyQ").value; loadDaily(false).catch((er) => toast(er.message)); }, 350); };
 $("dailyGrid").onclick = (e) => { const r = e.target.closest("[data-bc]"); if (r) openBarcode(r.dataset.bc); };
 $("dailyMoreBox").onclick = (e) => { if (e.target.closest("#dailyMoreBtn")) loadDaily(true).catch((er) => toast(er.message)); };
