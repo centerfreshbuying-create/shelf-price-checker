@@ -791,6 +791,11 @@ let editStore = null, editArea = null, editPriceStore = null;
 
 // ================= helpers =================
 const $ = (id) => document.getElementById(id);
+// selecting text to copy it (a barcode, a name, a price) must not open the item page
+document.addEventListener("click", (e) => {
+  if (String(window.getSelection?.() || "").trim() && e.target.closest?.("[data-bc]") && !e.target.closest("button,a,input,select,textarea")) e.stopPropagation();
+}, true);
+
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const safeUrl = (u) => { try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.toString() : ""; } catch { return ""; } };
 const money = (n) => n == null || isNaN(n) ? "—" : "$" + Number(n).toFixed(2);
