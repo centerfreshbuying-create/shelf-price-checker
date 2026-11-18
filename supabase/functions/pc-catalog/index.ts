@@ -120,7 +120,7 @@ function toPrice(v: unknown, centsHint = false): number | null {
 const decode = (s: string) =>
   s.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
 const SIZE_RE = /(\d+(?:\.\d+)?\s?(?:fl\.?\s?oz|oz|lb|lbs|g|kg|ml|l|ct|count|pk|pack)\b)/i;
-type Cand = { price: number; name?: string; image?: string; size?: string; url?: string };
+type Cand = { price: number; name?: string; image?: string; size?: string; url?: string; id?: number | string };
 // Self-Point stores (Moisha's…): search results give name, brand, size and the branch's price, but no barcode
 function fromSelfPoint(arr: any[], code: string, url: string): Cand[] {
   const origin = new URL(url).origin;
@@ -134,8 +134,8 @@ function fromSelfPoint(arr: any[], code: string, url: string): Cand[] {
     const unit = str(p.unitOfMeasure?.names?.["2"]);
     const size = p.weight && unit ? `${p.weight} ${unit}` : name?.match(SIZE_RE)?.[1];
     const img = str(p.image?.url)?.replace("{{size}}", "medium").replace(/\{\{extension[^}]*\}\}/, "jpg");
-    return { price, name, image: img, size, url: origin + "/" };
-  }).filter((c) => c.price);
+    return { price, name, image: img, size, url: origin + "/", id: p.id ?? p.productId };
+  }).filter((c) => c.price && c.id != null);
 }
 // Stores behind a "checking your browser" page are read through Firecrawl's page loader (normal mode, no stealth).
 const isBrowserStore = (s: any) => /\{rid\}/.test(String(s?.search_url || ""));
@@ -180,11 +180,10 @@ async function spResolve(searchUrl: string): Promise<string> {
 }
 // ---------- full price lists ----------
 // One page of a store's whole catalog. The database calls this on each store's schedule and matches the lists to "my store".
-const SP_Q = ["a", "e", "i", "o", "u"]; // Self-Point only lists items for a search word; these five cover nearly everything
 async function catalogPage(store: any, cur: any) {
   const su = String(store.search_url || "");
   const origin = new URL(su.replace(/\{\w+\}/g, "0")).origin;
-  const page = Math.max(0, Math.floor(Number(cur?.page) || 0)), qi = Math.min(SP_Q.length - 1, Math.max(0, Math.floor(Number(cur?.q) || 0)));
+  const page = Math.max(0, Math.floor(Number(cur?.page) || 0));
   const clean = (x: any) => x && x.price && x.name ? x : null;
   if (/\/api\/Catalog\/SearchTermAutoComplete/i.test(su)) {
     const r = await safeFetch(`${origin}/api/AjaxFilter/JsonProductsList?pageNumber=${page + 1}&q=a`, "application/json", "[]");
@@ -218,13 +217,15 @@ async function catalogPage(store: any, cur: any) {
     const viaFc = isBrowserStore(store);
     if (viaFc && !FC_KEY) throw new Error("fc:nokey");
     const base = (viaFc ? await spResolve(su) : su).split("?")[0];
-    const url = `${base}?appId=4&query=${SP_Q[qi]}&from=${page * 400}&size=400`;
+    // the same filter the store's own site uses: only items that are on sale at this branch right now
+    const filters = encodeURIComponent(JSON.stringify({ must: { exists: ["family.id", "family.categoriesPaths.id", "branch.regularPrice"], term: { "branch.isActive": true, "branch.isVisible": true } }, mustNot: { term: { "branch.regularPrice": 0 } } }));
+    const url = `${base}?appId=4&filters=${filters}&from=${page * 400}&size=400&sort=${encodeURIComponent(JSON.stringify({ id: "asc" }))}`;
     const r = viaFc ? await viaFirecrawl(url) : await safeFetch(url, "application/json");
     if (r.status >= 400) throw new Error(viaFc ? "fc:" + r.status : "http");
-    const j = JSON.parse(r.text);
-    const items = fromSelfPoint(j.products || [], "", url).map((c, i) => clean({ key: "sp" + (j.products[i]?.id ?? j.products[i]?.productId ?? c.name), barcode: null, name: c.name, size: c.size || null, price: c.price, image: c.image || null, url: c.url }));
-    const total = Math.min(Number(j.total) || 0, 10000);
-    return { items: items.filter(Boolean), next: (page + 1) * 400 < total ? { q: qi, page: page + 1 } : qi + 1 < SP_Q.length ? { q: qi + 1, page: 0 } : null, pages: Math.ceil(total / 400) };
+    const j = JSON.parse(r.text.replace(/^[^{]*/, "").replace(/[^}]*$/, ""));
+    const arr: any[] = j.products || [];
+    const items = fromSelfPoint(arr, "", url).map((c) => clean({ key: "sp" + c.id, barcode: null, name: c.name, size: c.size || null, price: c.price, image: c.image || null, url: c.url }));
+    return { items: items.filter(Boolean), next: arr.length === 400 && page < 190 ? { page: page + 1 } : null, pages: null };
   }
   throw new Error("nolist");
 }
